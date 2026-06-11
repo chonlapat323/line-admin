@@ -31,6 +31,8 @@ export const api = {
   getMe: () => request("/users/me"),
   createUser: (data: { email: string; password: string; fullName: string; role?: string }) =>
     request("/users", { method: "POST", body: JSON.stringify(data) }),
+  deleteUser: (userId: string) =>
+    request(`/users/${userId}`, { method: "DELETE" }),
   getVerificationCode: (userId: string) =>
     request(`/users/${userId}/verification-code`),
 

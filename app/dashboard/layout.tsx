@@ -3,10 +3,17 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
+const navItems = [
+  { href: "/dashboard", label: "ภาพรวม", icon: "📊", exact: true },
+  { href: "/dashboard/users", label: "จัดการ Users", icon: "👥" },
+  { href: "/dashboard/history", label: "ประวัติการส่ง", icon: "📋" },
+  { href: "/dashboard/settings", label: "ตั้งค่า", icon: "⚙️" },
+];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<{ fullName: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ fullName: string; email: string; role: string } | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -23,35 +30,53 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!user) return null;
 
-  const navItems = [
-    { href: "/dashboard/send", label: "ส่งรูป" },
-    { href: "/dashboard/connect", label: "เชื่อม LINE" },
-    { href: "/dashboard/users", label: "Users" },
-    { href: "/dashboard/history", label: "ประวัติ" },
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm px-6 py-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold text-gray-800">BeautyUp LINE Admin</h1>
-          <p className="text-xs text-gray-500">{user.fullName}</p>
+    <div className="flex min-h-screen bg-gray-100">
+      {/* Sidebar */}
+      <aside className="w-60 bg-gray-900 text-white flex flex-col fixed h-full z-10">
+        <div className="px-6 py-5 border-b border-gray-700">
+          <h1 className="text-base font-bold text-white">BeautyUp LINE</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Admin Panel</p>
         </div>
-        <button onClick={logout} className="text-sm text-gray-400 hover:text-red-500">ออก</button>
-      </header>
-      <nav className="bg-white border-b px-6 flex gap-1">
-        {navItems.map((item) => (
-          <Link key={item.href} href={item.href}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
-              pathname.startsWith(item.href)
-                ? "border-green-500 text-green-600"
-                : "border-transparent text-gray-500 hover:text-gray-800"
-            }`}>
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-      <main className="max-w-4xl mx-auto p-6">{children}</main>
+
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {navItems.map((item) => {
+            const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+            return (
+              <Link key={item.href} href={item.href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-green-600 text-white"
+                    : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                }`}>
+                <span>{item.icon}</span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="px-4 py-4 border-t border-gray-700">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-sm font-bold">
+              {user.fullName.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-white truncate">{user.fullName}</p>
+              <p className="text-xs text-gray-400 truncate">{user.email}</p>
+            </div>
+          </div>
+          <button onClick={logout}
+            className="w-full text-xs text-gray-400 hover:text-red-400 text-left transition-colors py-1">
+            ออกจากระบบ
+          </button>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 ml-60 p-8 min-h-screen">
+        {children}
+      </main>
     </div>
   );
 }
