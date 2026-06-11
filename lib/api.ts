@@ -1,0 +1,41 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+function getToken() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
+}
+
+async function request(path: string, options: RequestInit = {}) {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || "Request failed");
+  }
+  return res.json();
+}
+
+export const api = {
+  login: (email: string, password: string) =>
+    request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+
+  getUsers: () => request("/users"),
+  getMe: () => request("/users/me"),
+  createUser: (data: { email: string; password: string; fullName: string; role?: string }) =>
+    request("/users", { method: "POST", body: JSON.stringify(data) }),
+  getVerificationCode: (userId: string) =>
+    request(`/users/${userId}/verification-code`),
+
+  sendMessage: (formData: FormData) =>
+    request("/line/send", { method: "POST", body: formData, headers: {} }),
+  sendToAll: (formData: FormData) =>
+    request("/line/send-all", { method: "POST", body: formData, headers: {} }),
+};
