@@ -8,7 +8,6 @@ const navItems = [
   { href: "/dashboard/sales", label: "สถิติเซล", icon: "📈" },
   { href: "/dashboard/visits", label: "ประวัติการเยี่ยม", icon: "🗂️" },
   { href: "/dashboard/users", label: "จัดการ Users", icon: "👥" },
-  { href: "/dashboard/history", label: "ประวัติการส่ง", icon: "📋" },
   { href: "/dashboard/settings", label: "ตั้งค่า", icon: "⚙️" },
 ];
 
