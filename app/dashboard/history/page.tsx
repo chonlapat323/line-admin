@@ -13,7 +13,7 @@ interface Log {
   targetUser?: { fullName: string };
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 const STATUS_OPTIONS = [
   { value: "", label: "ทุกสถานะ" },

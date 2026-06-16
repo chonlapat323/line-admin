@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { PERIOD_OPTIONS, Period, filterByDateRange, formatThaiDate, getDateRange } from "@/lib/date-filter";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 interface Log {
   id: string;

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/toast";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 export default function SettingsPage() {
   const { toast } = useToast();
