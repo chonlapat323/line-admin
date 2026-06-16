@@ -28,7 +28,7 @@ interface UserStat {
   visits: VisitRecord[];
 }
 
-const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน", swap: "สลับวัน" };
+const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน" };
 const RESULT_LABEL: Record<string, string> = { buy: "ซื้อ", no_buy: "ไม่ซื้อ", not_found: "ไม่พบ" };
 
 function MiniBar({ value, total, color }: { value: number; total: number; color: string }) {

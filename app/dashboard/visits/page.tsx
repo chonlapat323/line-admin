@@ -18,7 +18,7 @@ interface VisitRecord {
   user?: { fullName: string; email: string };
 }
 
-const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน", swap: "สลับวัน" };
+const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน" };
 const MISSION_LABEL: Record<string, string> = { tak: "ทัก", dem: "เดม" };
 const RESULT_LABEL: Record<string, string> = { buy: "ซื้อ", no_buy: "ไม่ซื้อ", not_found: "ไม่พบ" };
 
