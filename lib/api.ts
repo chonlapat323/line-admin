@@ -40,4 +40,6 @@ export const api = {
     request("/line/send", { method: "POST", body: formData, headers: {} }),
   sendToAll: (formData: FormData) =>
     request("/line/send-all", { method: "POST", body: formData, headers: {} }),
+
+  getVisits: () => request("/visits"),
 };
