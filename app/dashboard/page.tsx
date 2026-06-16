@@ -1,15 +1,20 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import { api } from "@/lib/api";
 import { PERIOD_OPTIONS, Period, filterByDateRange, formatThaiDate, getDateRange } from "@/lib/date-filter";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
-
-interface Log {
+interface VisitRecord {
   id: string;
-  details: { title: string };
-  status: string;
+  shopName: string;
+  province: string;
+  district?: string;
+  tripType?: string;
+  customerType: string;
+  visitType?: string;
+  result?: string;
+  imageUrls: string[];
   createdAt: string;
-  targetUser?: { fullName: string };
+  user?: { fullName: string };
 }
 
 interface User {
@@ -17,9 +22,27 @@ interface User {
   createdAt: string;
 }
 
+const RESULT_LABEL: Record<string, string> = { buy: "ซื้อ", no_buy: "ไม่ซื้อ", not_found: "ไม่พบ" };
+const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน", swap: "สลับวัน" };
+
+function ResultBadge({ result }: { result?: string }) {
+  if (!result) return null;
+  const cls =
+    result === "buy"
+      ? "bg-green-50 text-green-700"
+      : result === "no_buy"
+      ? "bg-red-50 text-red-600"
+      : "bg-gray-100 text-gray-500";
+  return (
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${cls}`}>
+      {RESULT_LABEL[result] || result}
+    </span>
+  );
+}
+
 export default function DashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [logs, setLogs] = useState<Log[]>([]);
+  const [visits, setVisits] = useState<VisitRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("month");
   const [customFrom, setCustomFrom] = useState("");
@@ -28,66 +51,59 @@ export default function DashboardPage() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     Promise.all([
-      fetch(`${API_URL}/users`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
-      fetch(`${API_URL}/line/history`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002"}/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json()),
+      api.getVisits(),
     ])
-      .then(([u, l]) => {
+      .then(([u, v]) => {
         setUsers(Array.isArray(u) ? u : []);
-        setLogs(Array.isArray(l) ? l : []);
+        setVisits(Array.isArray(v) ? v : []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredLogs = useMemo(
-    () => filterByDateRange(logs, period, customFrom, customTo),
-    [logs, period, customFrom, customTo]
+  const filteredVisits = useMemo(
+    () => filterByDateRange(visits, period, customFrom, customTo),
+    [visits, period, customFrom, customTo]
   );
   const filteredUsers = useMemo(
     () => filterByDateRange(users, period, customFrom, customTo),
     [users, period, customFrom, customTo]
   );
 
-  const successCount = filteredLogs.filter((l) => l.status === "success").length;
-  const failedCount = filteredLogs.filter((l) => l.status === "failed").length;
-  const successRate = filteredLogs.length > 0 ? Math.round((successCount / filteredLogs.length) * 100) : 0;
-  const recentLogs = filteredLogs.slice(0, 5);
+  const buyCount = filteredVisits.filter((v) => v.result === "buy").length;
+  const noBuyCount = filteredVisits.filter((v) => v.result === "no_buy").length;
+  const notFoundCount = filteredVisits.filter((v) => v.result === "not_found").length;
+  const buyRate = filteredVisits.length > 0 ? Math.round((buyCount / filteredVisits.length) * 100) : 0;
+
+  const recentVisits = filteredVisits.slice(0, 5);
 
   const range = getDateRange(period, customFrom, customTo);
   const periodLabel = range
     ? `${range.start.toLocaleDateString("th-TH", { day: "numeric", month: "short" })} – ${range.end.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}`
     : "";
 
-  const statCards = [
+  const visitStatCards = [
     {
-      label: "ผู้ใช้ใหม่",
-      value: filteredUsers.length,
-      sub: `จากทั้งหมด ${users.length} คน`,
-      color: "text-blue-600",
-      iconBg: "bg-blue-50",
-      icon: (
-        <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      ),
-    },
-    {
-      label: "ส่งทั้งหมด",
-      value: filteredLogs.length,
-      sub: "รายการในช่วงนี้",
-      color: "text-gray-800",
-      iconBg: "bg-gray-100",
-      icon: (
-        <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-        </svg>
-      ),
-    },
-    {
-      label: "สำเร็จ",
-      value: successCount,
-      sub: `คิดเป็น ${successRate}%`,
+      label: "เยี่ยมร้านทั้งหมด",
+      value: filteredVisits.length,
+      sub: `จากทั้งหมด ${visits.length} รายการ`,
       color: "text-green-600",
+      iconBg: "bg-green-50",
+      icon: (
+        <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+    },
+    {
+      label: "ซื้อ",
+      value: buyCount,
+      sub: `คิดเป็น ${buyRate}%`,
+      color: "text-green-700",
       iconBg: "bg-green-50",
       icon: (
         <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -96,14 +112,26 @@ export default function DashboardPage() {
       ),
     },
     {
-      label: "ล้มเหลว",
-      value: failedCount,
-      sub: failedCount > 0 ? "ต้องตรวจสอบ" : "ไม่มีข้อผิดพลาด",
-      color: failedCount > 0 ? "text-red-500" : "text-gray-400",
-      iconBg: failedCount > 0 ? "bg-red-50" : "bg-gray-100",
+      label: "ไม่ซื้อ",
+      value: noBuyCount,
+      sub: filteredVisits.length > 0 ? `คิดเป็น ${Math.round((noBuyCount / filteredVisits.length) * 100)}%` : "—",
+      color: "text-red-500",
+      iconBg: "bg-red-50",
       icon: (
-        <svg className={`w-5 h-5 ${failedCount > 0 ? "text-red-500" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      label: "ไม่พบ",
+      value: notFoundCount,
+      sub: filteredVisits.length > 0 ? `คิดเป็น ${Math.round((notFoundCount / filteredVisits.length) * 100)}%` : "—",
+      color: "text-gray-500",
+      iconBg: "bg-gray-100",
+      icon: (
+        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
     },
@@ -111,15 +139,15 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header — fixed height, no shift */}
+      {/* Header */}
       <div>
         <h2 className="text-xl font-bold text-gray-800">ภาพรวม</h2>
         <p className="text-sm text-gray-400 mt-0.5 h-5 transition-opacity duration-200" style={{ opacity: periodLabel ? 1 : 0 }}>
-          {periodLabel || " "}
+          {periodLabel || " "}
         </p>
       </div>
 
-      {/* Period filter — date range slides in on the same row */}
+      {/* Period filter */}
       <div className="flex items-center gap-3">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl flex-shrink-0">
           {PERIOD_OPTIONS.map((p) => (
@@ -136,141 +164,139 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
-
-        {/* Custom date range — slides in to the right, same row */}
         <div
           className="overflow-hidden transition-all duration-200 ease-in-out flex-shrink-0"
           style={{ maxWidth: period === "custom" ? "320px" : "0px", opacity: period === "custom" ? 1 : 0 }}
         >
           <div className="flex items-center gap-2 whitespace-nowrap">
-            <input
-              type="date"
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-              className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 bg-white"
-            />
+            <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
+              className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 bg-white" />
             <span className="text-gray-300 text-lg font-light">—</span>
-            <input
-              type="date"
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-              min={customFrom}
-              className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 bg-white"
-            />
+            <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} min={customFrom}
+              className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 bg-white" />
           </div>
         </div>
       </div>
 
-      {/* Stats — fixed height cards, skeleton matches value height */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card) => (
-          <div key={card.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-xs font-medium text-gray-400">{card.label}</p>
-              <div className={`w-9 h-9 rounded-xl ${card.iconBg} flex items-center justify-center flex-shrink-0`}>
-                {card.icon}
+      {/* Visit stat cards */}
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">การเยี่ยมร้าน</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {visitStatCards.map((card) => (
+            <div key={card.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="flex items-start justify-between mb-3">
+                <p className="text-xs font-medium text-gray-400">{card.label}</p>
+                <div className={`w-9 h-9 rounded-xl ${card.iconBg} flex items-center justify-center flex-shrink-0`}>
+                  {card.icon}
+                </div>
               </div>
+              <div className="h-9 flex items-center">
+                {loading ? (
+                  <div className="h-7 w-14 bg-gray-200 animate-pulse rounded-lg" />
+                ) : (
+                  <p className={`text-3xl font-bold tabular-nums leading-none ${card.color}`}>{card.value}</p>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">{card.sub}</p>
             </div>
-            {/* Fixed height so skeleton never shifts layout */}
-            <div className="h-9 flex items-center">
-              {loading ? (
-                <div className="h-7 w-14 bg-gray-200 animate-pulse rounded-lg" />
-              ) : (
-                <p className={`text-3xl font-bold tabular-nums leading-none ${card.color}`}>{card.value}</p>
-              )}
-            </div>
-            <p className="text-xs text-gray-400 mt-1.5">{card.sub}</p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* Rate bar — always rendered, bar width animates */}
+      {/* Buy rate bar */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-gray-700">อัตราความสำเร็จ</p>
-          <p className="text-sm font-bold tabular-nums text-green-600">{loading ? "—" : `${successRate}%`}</p>
+          <p className="text-sm font-semibold text-gray-700">อัตราการซื้อ</p>
+          <p className="text-sm font-bold tabular-nums text-green-600">{loading ? "—" : `${buyRate}%`}</p>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-2">
-          <div
-            className="bg-green-500 h-2 rounded-full transition-all duration-700 ease-out"
-            style={{ width: loading ? "0%" : `${successRate}%` }}
-          />
+          <div className="bg-green-500 h-2 rounded-full transition-all duration-700 ease-out" style={{ width: loading ? "0%" : `${buyRate}%` }} />
         </div>
         <div className="flex justify-between mt-2">
-          <p className="text-xs text-gray-400">
-            {loading ? (
-              <span className="inline-block h-3 w-20 bg-gray-200 animate-pulse rounded" />
-            ) : (
-              `สำเร็จ ${successCount} รายการ`
-            )}
-          </p>
-          <p className="text-xs text-gray-400">
-            {loading ? (
-              <span className="inline-block h-3 w-20 bg-gray-200 animate-pulse rounded" />
-            ) : (
-              `ล้มเหลว ${failedCount} รายการ`
-            )}
-          </p>
+          <p className="text-xs text-gray-400">{loading ? <span className="inline-block h-3 w-24 bg-gray-200 animate-pulse rounded" /> : `ซื้อ ${buyCount} รายการ`}</p>
+          <p className="text-xs text-gray-400">{loading ? <span className="inline-block h-3 w-24 bg-gray-200 animate-pulse rounded" /> : `ไม่ซื้อ/ไม่พบ ${noBuyCount + notFoundCount} รายการ`}</p>
         </div>
       </div>
 
-      {/* Recent logs */}
+      {/* User summary */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-xs text-gray-400">ผู้ใช้ในระบบ</p>
+          {loading ? (
+            <div className="h-6 w-20 bg-gray-200 animate-pulse rounded mt-1" />
+          ) : (
+            <p className="text-lg font-bold text-blue-600 tabular-nums">{users.length} คน</p>
+          )}
+        </div>
+        {!loading && filteredUsers.length !== users.length && (
+          <p className="text-xs text-gray-400 ml-2">({filteredUsers.length} ใหม่ในช่วงนี้)</p>
+        )}
+      </div>
+
+      {/* Recent visits */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">การส่งล่าสุด</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">การเยี่ยมร้านล่าสุด</h3>
         <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">ชื่อสินค้า</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">ส่งถึง</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">ร้านค้า</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">เซล</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ทริป</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">วันที่</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">สถานะ</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">ผล</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {loading &&
-                Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i}>
-                    <td className="px-5 py-3.5"><div className="h-3.5 w-32 bg-gray-200 animate-pulse rounded" /></td>
-                    <td className="px-5 py-3.5 hidden md:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
-                    <td className="px-5 py-3.5 hidden lg:table-cell"><div className="h-3.5 w-28 bg-gray-200 animate-pulse rounded" /></td>
-                    <td className="px-5 py-3.5"><div className="h-6 w-14 bg-gray-200 animate-pulse rounded-full" /></td>
-                  </tr>
-                ))}
-              {!loading && recentLogs.length === 0 && (
+              {loading && Array.from({ length: 4 }).map((_, i) => (
+                <tr key={i}>
+                  <td className="px-5 py-3.5"><div className="h-3.5 w-32 bg-gray-200 animate-pulse rounded" /></td>
+                  <td className="px-5 py-3.5 hidden md:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
+                  <td className="px-5 py-3.5 hidden lg:table-cell"><div className="h-3.5 w-16 bg-gray-200 animate-pulse rounded" /></td>
+                  <td className="px-5 py-3.5 hidden lg:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
+                  <td className="px-5 py-3.5"><div className="h-6 w-14 bg-gray-200 animate-pulse rounded-full" /></td>
+                </tr>
+              ))}
+              {!loading && recentVisits.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center text-sm text-gray-400">
-                    ไม่มีประวัติในช่วงเวลานี้
+                  <td colSpan={5} className="px-5 py-8 text-center text-sm text-gray-400">
+                    ไม่มีการเยี่ยมร้านในช่วงเวลานี้
                   </td>
                 </tr>
               )}
-              {!loading &&
-                recentLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3.5 font-medium text-gray-800">{log.details?.title || "—"}</td>
-                    <td className="px-5 py-3.5 text-gray-500 hidden md:table-cell">
-                      {log.targetUser?.fullName || <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-5 py-3.5 text-gray-400 text-xs hidden lg:table-cell whitespace-nowrap">
-                      {formatThaiDate(log.createdAt)}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      {log.status === "success" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                          สำเร็จ
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
-                          ล้มเหลว
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+              {!loading && recentVisits.map((v) => (
+                <tr key={v.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-5 py-3.5">
+                    <p className="font-medium text-gray-800">{v.shopName}</p>
+                    <p className="text-xs text-gray-400">{v.district ? `${v.province} · ${v.district}` : v.province}</p>
+                  </td>
+                  <td className="px-5 py-3.5 text-gray-500 hidden md:table-cell">
+                    {v.user?.fullName || <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-5 py-3.5 text-gray-400 text-xs hidden lg:table-cell">
+                    {v.tripType ? TRIP_LABEL[v.tripType] : "—"}
+                  </td>
+                  <td className="px-5 py-3.5 text-gray-400 text-xs hidden lg:table-cell whitespace-nowrap">
+                    {formatThaiDate(v.createdAt)}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <ResultBadge result={v.result} />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
+          {!loading && recentVisits.length > 0 && (
+            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-400 text-right">
+              แสดง {recentVisits.length} รายการล่าสุด ·{" "}
+              <a href="/dashboard/visits" className="text-green-600 hover:underline font-medium">ดูทั้งหมด →</a>
+            </div>
+          )}
         </div>
       </div>
     </div>
