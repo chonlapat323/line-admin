@@ -145,13 +145,20 @@ export default function VisitsPage() {
     return acc;
   }, [filtered]);
 
-  const topProvinces = useMemo(
-    () =>
-      Object.entries(provinceStats)
-        .sort((a, b) => b[1].total - a[1].total)
-        .slice(0, 5),
-    [provinceStats]
-  );
+  const timeFiltered = useMemo(() => {
+    if (period === "all") return visits;
+    return filterByDateRange(visits, period as Period, customFrom, customTo);
+  }, [visits, period, customFrom, customTo]);
+
+  const topProvinces = useMemo(() => {
+    const acc: Record<string, number> = {};
+    for (const v of timeFiltered) {
+      acc[v.province] = (acc[v.province] || 0) + 1;
+    }
+    return Object.entries(acc)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [timeFiltered]);
 
   return (
     <div className="space-y-5">
@@ -199,7 +206,7 @@ export default function VisitsPage() {
             Top {topProvinces.length} จังหวัด
           </p>
           <div className="flex flex-wrap gap-2">
-            {topProvinces.map(([name, s], i) => (
+            {topProvinces.map(([name, count], i) => (
               <button
                 key={name}
                 onClick={() => {
@@ -215,7 +222,7 @@ export default function VisitsPage() {
                 </svg>
                 <span className="text-xs font-semibold text-green-800">{name}</span>
                 <span className="bg-green-600 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
-                  {s.total}
+                  {count}
                 </span>
               </button>
             ))}
