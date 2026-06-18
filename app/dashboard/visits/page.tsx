@@ -144,6 +144,14 @@ export default function VisitsPage() {
     return acc;
   }, [filtered]);
 
+  const topProvinces = useMemo(
+    () =>
+      Object.entries(provinceStats)
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 5),
+    [provinceStats]
+  );
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -182,6 +190,32 @@ export default function VisitsPage() {
           </div>
         ))}
       </div>
+
+      {/* Top 5 provinces */}
+      {topProvinces.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-4 py-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">
+            Top {topProvinces.length} จังหวัด
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {topProvinces.map(([name, s], i) => (
+              <div
+                key={name}
+                className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1.5"
+              >
+                <span className="text-xs font-bold text-green-800 w-4 text-center">{i + 1}</span>
+                <svg className="w-3 h-3 text-green-700 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+                <span className="text-xs font-semibold text-green-800">{name}</span>
+                <span className="bg-green-600 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                  {s.total}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 space-y-3">
