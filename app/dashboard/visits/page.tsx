@@ -4,8 +4,7 @@ import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import { filterByDateRange, PERIOD_OPTIONS, type Period } from "@/lib/date-filter";
-import type { MapPin } from "@/components/visits-map";
-import { PROVINCE_CENTROIDS } from "@/lib/province-centroids";
+import type { VisitsMapProps, ProvinceStats } from "@/components/visits-map";
 
 const VisitsMap = dynamic(() => import("@/components/visits-map"), {
   ssr: false,
@@ -133,25 +132,17 @@ export default function VisitsPage() {
     return { total, buy, noBuy, notFound, totalAmount };
   }, [filtered]);
 
-  const mapPins = useMemo<MapPin[]>(
-    () =>
-      filtered.flatMap((v) => {
-        const centroid = PROVINCE_CENTROIDS[v.province];
-        if (!centroid) return [];
-        return [{
-          id: v.id,
-          lat: centroid.lat,
-          lng: centroid.lng,
-          shopName: v.shopName,
-          result: v.result,
-          province: v.province,
-          date: new Date(v.createdAt).toLocaleDateString("th-TH", { dateStyle: "short" }),
-          user: v.user?.fullName,
-          orderAmount: v.orderAmount,
-        }];
-      }),
-    [filtered]
-  );
+  const provinceStats = useMemo<Record<string, ProvinceStats>>(() => {
+    const acc: Record<string, ProvinceStats> = {};
+    for (const v of filtered) {
+      if (!acc[v.province]) acc[v.province] = { total: 0, buy: 0, noBuy: 0, notFound: 0 };
+      acc[v.province].total++;
+      if (v.result === "buy") acc[v.province].buy++;
+      else if (v.result === "no_buy") acc[v.province].noBuy++;
+      else if (v.result === "not_found") acc[v.province].notFound++;
+    }
+    return acc;
+  }, [filtered]);
 
   return (
     <div className="space-y-5">
@@ -286,18 +277,15 @@ export default function VisitsPage() {
             <span className="text-sm font-semibold text-gray-700">แผนที่การเยี่ยม</span>
             <div className="flex items-center gap-4 text-xs text-gray-500">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-600 inline-block" />ซื้อ
+                <span className="w-3 h-3 rounded-sm inline-block" style={{ background: "rgba(22,101,52,0.85)" }} />เยี่ยมมาก
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />ไม่ซื้อ
+                <span className="w-3 h-3 rounded-sm inline-block" style={{ background: "rgba(134,239,172,0.65)" }} />เยี่ยมน้อย
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-gray-400 inline-block" />ไม่พบ
-              </span>
-              <span className="text-gray-400">{mapPins.length} จุด</span>
+              <span className="text-gray-400">{Object.keys(provinceStats).length} จังหวัด</span>
             </div>
           </div>
-          <VisitsMap pins={mapPins} />
+          <VisitsMap provinceStats={provinceStats} />
         </div>
       )}
 
