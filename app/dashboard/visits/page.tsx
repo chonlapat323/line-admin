@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import { filterByDateRange, PERIOD_OPTIONS, type Period } from "@/lib/date-filter";
 import type { MapPin } from "@/components/visits-map";
+import { PROVINCE_CENTROIDS } from "@/lib/province-centroids";
 
 const VisitsMap = dynamic(() => import("@/components/visits-map"), {
   ssr: false,
@@ -135,18 +136,22 @@ export default function VisitsPage() {
   const mapPins = useMemo<MapPin[]>(
     () =>
       filtered
-        .filter((v) => v.latitude && v.longitude && !(v.latitude === 0 && v.longitude === 0))
-        .map((v) => ({
-          id: v.id,
-          lat: v.latitude!,
-          lng: v.longitude!,
-          shopName: v.shopName,
-          result: v.result,
-          province: v.province,
-          date: new Date(v.createdAt).toLocaleDateString("th-TH", { dateStyle: "short" }),
-          user: v.user?.fullName,
-          orderAmount: v.orderAmount,
-        })),
+        .map((v) => {
+          const centroid = PROVINCE_CENTROIDS[v.province];
+          if (!centroid) return null;
+          return {
+            id: v.id,
+            lat: centroid.lat,
+            lng: centroid.lng,
+            shopName: v.shopName,
+            result: v.result,
+            province: v.province,
+            date: new Date(v.createdAt).toLocaleDateString("th-TH", { dateStyle: "short" }),
+            user: v.user?.fullName,
+            orderAmount: v.orderAmount,
+          };
+        })
+        .filter((p): p is MapPin => p !== null),
     [filtered]
   );
 
