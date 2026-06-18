@@ -81,6 +81,7 @@ export default function VisitsPage() {
   // UI
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(true);
+  const [flyToProvince, setFlyToProvince] = useState<string | undefined>();
 
   useEffect(() => {
     api
@@ -199,9 +200,14 @@ export default function VisitsPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             {topProvinces.map(([name, s], i) => (
-              <div
+              <button
                 key={name}
-                className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1.5"
+                onClick={() => {
+                  setProvinceFilter(name);
+                  setFlyToProvince(name);
+                  setShowMap(true);
+                }}
+                className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1.5 cursor-pointer hover:bg-green-100 hover:border-green-300 transition-colors"
               >
                 <span className="text-xs font-bold text-green-800 w-4 text-center">{i + 1}</span>
                 <svg className="w-3 h-3 text-green-700 shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -211,7 +217,7 @@ export default function VisitsPage() {
                 <span className="bg-green-600 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
                   {s.total}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -319,7 +325,7 @@ export default function VisitsPage() {
               <span className="text-gray-400">{Object.keys(provinceStats).length} จังหวัด</span>
             </div>
           </div>
-          <VisitsMap provinceStats={provinceStats} />
+          <VisitsMap provinceStats={provinceStats} flyToProvince={flyToProvince} />
         </div>
       )}
 

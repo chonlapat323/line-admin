@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
-import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import type { StyleFunction } from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { PROVINCE_CENTROIDS } from "@/lib/province-centroids";
 
 const EN_TO_TH: Record<string, string> = {
   "Amnat Charoen": "อำนาจเจริญ", "Ang Thong": "อ่างทอง",
@@ -54,6 +55,17 @@ export interface ProvinceStats {
 
 export interface VisitsMapProps {
   provinceStats: Record<string, ProvinceStats>;
+  flyToProvince?: string;
+}
+
+function MapController({ province }: { province?: string }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!province) return;
+    const c = PROVINCE_CENTROIDS[province];
+    if (c) map.flyTo([c.lat, c.lng], 9, { duration: 1 });
+  }, [province, map]);
+  return null;
 }
 
 function getProvinceColor(count: number, maxCount: number): string {
@@ -82,7 +94,7 @@ function buildPopup(nameTH: string, stats: ProvinceStats): string {
     </div>`;
 }
 
-export default function VisitsMap({ provinceStats }: VisitsMapProps) {
+export default function VisitsMap({ provinceStats, flyToProvince }: VisitsMapProps) {
   const [geojson, setGeojson] = useState<any>(null);
   const maxCount = Math.max(...Object.values(provinceStats).map((s) => s.total), 1);
 
@@ -132,6 +144,7 @@ export default function VisitsMap({ provinceStats }: VisitsMapProps) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
       />
+      <MapController province={flyToProvince} />
       {geojson && (
         <GeoJSON
           key={JSON.stringify(provinceStats)}
