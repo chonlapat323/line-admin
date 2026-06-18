@@ -135,23 +135,21 @@ export default function VisitsPage() {
 
   const mapPins = useMemo<MapPin[]>(
     () =>
-      filtered
-        .map((v) => {
-          const centroid = PROVINCE_CENTROIDS[v.province];
-          if (!centroid) return null;
-          return {
-            id: v.id,
-            lat: centroid.lat,
-            lng: centroid.lng,
-            shopName: v.shopName,
-            result: v.result,
-            province: v.province,
-            date: new Date(v.createdAt).toLocaleDateString("th-TH", { dateStyle: "short" }),
-            user: v.user?.fullName,
-            orderAmount: v.orderAmount,
-          };
-        })
-        .filter((p): p is MapPin => p !== null),
+      filtered.flatMap((v) => {
+        const centroid = PROVINCE_CENTROIDS[v.province];
+        if (!centroid) return [];
+        return [{
+          id: v.id,
+          lat: centroid.lat,
+          lng: centroid.lng,
+          shopName: v.shopName,
+          result: v.result,
+          province: v.province,
+          date: new Date(v.createdAt).toLocaleDateString("th-TH", { dateStyle: "short" }),
+          user: v.user?.fullName,
+          orderAmount: v.orderAmount,
+        }];
+      }),
     [filtered]
   );
 
