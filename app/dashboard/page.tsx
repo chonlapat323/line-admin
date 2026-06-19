@@ -12,6 +12,7 @@ interface VisitRecord {
   customerType: string;
   visitType?: string;
   result?: string;
+  orderAmount?: number | null;
   imageUrls: string[];
   createdAt: string;
   user?: { fullName: string };
@@ -92,6 +93,9 @@ export default function DashboardPage() {
   const noBuyCount = filteredVisits.filter((v) => v.result === "no_buy").length;
   const notFoundCount = filteredVisits.filter((v) => v.result === "not_found").length;
   const buyRate = filteredVisits.length > 0 ? Math.round((buyCount / filteredVisits.length) * 100) : 0;
+  const totalAmount = filteredVisits
+    .filter((v) => v.result === "buy" && v.orderAmount != null)
+    .reduce((s, v) => s + (v.orderAmount ?? 0), 0);
 
   const recentVisits = filteredVisits.slice(0, 5);
 
@@ -147,6 +151,18 @@ export default function DashboardPage() {
       icon: (
         <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      label: "ยอดซื้อรวม",
+      value: `฿${totalAmount.toLocaleString("th-TH")}`,
+      sub: `จาก ${buyCount} รายการที่ซื้อ`,
+      color: "text-green-700",
+      iconBg: "bg-green-50",
+      icon: (
+        <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
     },
@@ -214,7 +230,7 @@ export default function DashboardPage() {
       {/* Visit stat cards */}
       <div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">การเยี่ยมร้าน</p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {visitStatCards.map((card) => (
             <div key={card.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <div className="flex items-start justify-between mb-3">
