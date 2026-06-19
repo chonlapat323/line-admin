@@ -82,7 +82,7 @@ function LeaderboardCard({ s, rank, expanded, onToggle }: {
   const topProv = Object.entries(s.provinces).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
   return (
-    <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${medal.bg}`}>
+    <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden w-full min-w-0 ${medal.bg}`}>
       <button className="w-full text-left p-5 hover:opacity-90 transition-opacity" onClick={onToggle}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
