@@ -87,7 +87,7 @@ export default function VisitsPage() {
   const [flyToProvince, setFlyToProvince] = useState<string | undefined>();
   const [selectedVisit, setSelectedVisit] = useState<VisitRecord | null>(null);
   const [tablePage, setTablePage] = useState(1);
-  const TABLE_PAGE_SIZE = 20;
+  const [pageSize, setPageSize] = useState(20);
 
   // API response
   const [pageData, setPageData] = useState<{
@@ -103,7 +103,7 @@ export default function VisitsPage() {
   }, [search]);
 
   // Fetch whenever filter or page changes
-  const filterKey = `${period}|${customFrom}|${customTo}|${provinceFilter}|${resultFilter}|${tripFilter}|${visitTypeFilter}|${customerFilter}|${debouncedSearch}`;
+  const filterKey = `${period}|${customFrom}|${customTo}|${provinceFilter}|${resultFilter}|${tripFilter}|${visitTypeFilter}|${customerFilter}|${debouncedSearch}|${pageSize}`;
   const filterKeyRef = useRef(filterKey);
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function VisitsPage() {
     setLoading(true);
     Promise.all([
       api.getVisits({
-        page: effectivePage, limit: TABLE_PAGE_SIZE,
+        page: effectivePage, limit: pageSize,
         province: provinceFilter || undefined,
         result: resultFilter || undefined,
         tripType: tripFilter || undefined,
@@ -426,7 +426,14 @@ export default function VisitsPage() {
         </table>
         {!loading && pageData.total > 0 && (
           <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-400 flex items-center justify-between">
-            <span>แสดง {Math.min((tablePage - 1) * TABLE_PAGE_SIZE + 1, pageData.total)}–{Math.min(tablePage * TABLE_PAGE_SIZE, pageData.total)} จาก {pageData.total} รายการ</span>
+            <div className="flex items-center gap-2">
+              <span>แสดง {Math.min((tablePage - 1) * pageSize + 1, pageData.total)}–{Math.min(tablePage * pageSize, pageData.total)} จาก {pageData.total} รายการ</span>
+              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setTablePage(1); }} className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-400">
+                <option value={20}>20/หน้า</option>
+                <option value={50}>50/หน้า</option>
+                <option value={100}>100/หน้า</option>
+              </select>
+            </div>
             {totalTablePages > 1 && (
               <div className="flex items-center gap-1">
                 <button onClick={() => setTablePage((p) => Math.max(1, p - 1))} disabled={tablePage === 1} className="px-2 py-1 rounded-lg text-xs text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">‹</button>
