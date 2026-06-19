@@ -269,8 +269,8 @@ export default function SalesPage() {
   const [provinceFilter, setProvinceFilter] = useState("");
 
   useEffect(() => {
-    api.getVisits()
-      .then((v) => setVisits(Array.isArray(v) ? v : []))
+    api.getVisits({ limit: 9999 })
+      .then((v) => setVisits(v?.data ?? (Array.isArray(v) ? v : [])))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);

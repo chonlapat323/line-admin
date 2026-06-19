@@ -62,11 +62,11 @@ export default function DashboardPage() {
       fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002"}/users`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then((r) => r.json()),
-      api.getVisits(),
+      api.getVisits({ limit: 9999 }),
     ])
       .then(([u, v]) => {
         setUsers(Array.isArray(u) ? u : []);
-        setVisits(Array.isArray(v) ? v : []);
+        setVisits(v?.data ?? (Array.isArray(v) ? v : []));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
