@@ -47,6 +47,12 @@ export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [resultFilter, setResultFilter] = useState("");
+  const [tripFilter, setTripFilter] = useState("");
+  const [visitTypeFilter, setVisitTypeFilter] = useState("");
+  const [customerFilter, setCustomerFilter] = useState("");
+  const [provinceFilter, setProvinceFilter] = useState("");
+  const [userFilter, setUserFilter] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -64,10 +70,19 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredVisits = useMemo(
-    () => filterByDateRange(visits, period, customFrom, customTo),
-    [visits, period, customFrom, customTo]
-  );
+  const provinces = useMemo(() => Array.from(new Set(visits.map((v) => v.province))).sort(), [visits]);
+  const userNames = useMemo(() => Array.from(new Set(visits.map((v) => v.user?.fullName).filter(Boolean) as string[])).sort(), [visits]);
+
+  const filteredVisits = useMemo(() => {
+    let result = filterByDateRange(visits, period, customFrom, customTo);
+    if (resultFilter) result = result.filter((v) => v.result === resultFilter);
+    if (tripFilter) result = result.filter((v) => v.tripType === tripFilter);
+    if (visitTypeFilter) result = result.filter((v) => v.visitType === visitTypeFilter);
+    if (customerFilter) result = result.filter((v) => v.customerType === customerFilter);
+    if (provinceFilter) result = result.filter((v) => v.province === provinceFilter);
+    if (userFilter) result = result.filter((v) => v.user?.fullName === userFilter);
+    return result;
+  }, [visits, period, customFrom, customTo, resultFilter, tripFilter, visitTypeFilter, customerFilter, provinceFilter, userFilter]);
   const filteredUsers = useMemo(
     () => filterByDateRange(users, period, customFrom, customTo),
     [users, period, customFrom, customTo]
@@ -176,6 +191,24 @@ export default function DashboardPage() {
               className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 bg-white" />
           </div>
         </div>
+      </div>
+
+      {/* Type filters */}
+      <div className="flex gap-2 flex-wrap">
+        {[
+          { value: provinceFilter, set: setProvinceFilter, placeholder: "ทุกจังหวัด", options: provinces.map((p) => ({ value: p, label: p })) },
+          { value: userFilter, set: setUserFilter, placeholder: "ทุกเซล", options: userNames.map((n) => ({ value: n, label: n })) },
+          { value: resultFilter, set: setResultFilter, placeholder: "ทุกผล", options: [{ value: "buy", label: "ซื้อ" }, { value: "no_buy", label: "ไม่ซื้อ" }, { value: "not_found", label: "ไม่พบ" }] },
+          { value: tripFilter, set: setTripFilter, placeholder: "ทุกทริป", options: [{ value: "plan", label: "ตามแผน" }, { value: "off_plan", label: "นอกแผน" }] },
+          { value: visitTypeFilter, set: setVisitTypeFilter, placeholder: "ทุกภารกิจ", options: [{ value: "tak", label: "ทัก" }, { value: "dem", label: "เดม" }, { value: "tel", label: "โทร" }] },
+          { value: customerFilter, set: setCustomerFilter, placeholder: "ทุกลูกค้า", options: [{ value: "new", label: "ลูกค้าใหม่" }, { value: "existing", label: "ลูกค้าเก่า" }] },
+        ].map(({ value, set, placeholder, options }) => (
+          <select key={placeholder} value={value} onChange={(e) => set(e.target.value)}
+            className="text-sm border border-gray-200 rounded-xl bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 min-w-[110px]">
+            <option value="">{placeholder}</option>
+            {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        ))}
       </div>
 
       {/* Visit stat cards */}

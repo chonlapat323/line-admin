@@ -262,6 +262,11 @@ export default function SalesPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [resultFilter, setResultFilter] = useState("");
+  const [tripFilter, setTripFilter] = useState("");
+  const [visitTypeFilter, setVisitTypeFilter] = useState("");
+  const [customerFilter, setCustomerFilter] = useState("");
+  const [provinceFilter, setProvinceFilter] = useState("");
 
   useEffect(() => {
     api.getVisits()
@@ -270,10 +275,17 @@ export default function SalesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = useMemo(
-    () => filterByDateRange(visits, period, customFrom, customTo),
-    [visits, period, customFrom, customTo]
-  );
+  const provinces = useMemo(() => Array.from(new Set(visits.map((v) => v.province))).sort(), [visits]);
+
+  const filtered = useMemo(() => {
+    let result = filterByDateRange(visits, period, customFrom, customTo);
+    if (resultFilter) result = result.filter((v) => v.result === resultFilter);
+    if (tripFilter) result = result.filter((v) => v.tripType === tripFilter);
+    if (visitTypeFilter) result = result.filter((v) => v.visitType === visitTypeFilter);
+    if (customerFilter) result = result.filter((v) => v.customerType === customerFilter);
+    if (provinceFilter) result = result.filter((v) => v.province === provinceFilter);
+    return result;
+  }, [visits, period, customFrom, customTo, resultFilter, tripFilter, visitTypeFilter, customerFilter, provinceFilter]);
 
   const userStats = useMemo<UserStat[]>(() => {
     const map: Record<string, UserStat> = {};
@@ -363,6 +375,24 @@ export default function SalesPage() {
             value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-green-400" />
         </div>
+      </div>
+
+      {/* Type filters */}
+      <div className="flex gap-2 flex-wrap">
+        {[
+          { value: provinceFilter, set: setProvinceFilter, placeholder: "ทุกจังหวัด", options: provinces.map((p) => ({ value: p, label: p })) },
+          { value: resultFilter, set: setResultFilter, placeholder: "ทุกผล", options: [{ value: "buy", label: "ซื้อ" }, { value: "no_buy", label: "ไม่ซื้อ" }, { value: "not_found", label: "ไม่พบ" }] },
+          { value: tripFilter, set: setTripFilter, placeholder: "ทุกทริป", options: [{ value: "plan", label: "ตามแผน" }, { value: "off_plan", label: "นอกแผน" }] },
+          { value: visitTypeFilter, set: setVisitTypeFilter, placeholder: "ทุกภารกิจ", options: [{ value: "tak", label: "ทัก" }, { value: "dem", label: "เดม" }, { value: "tel", label: "โทร" }] },
+          { value: customerFilter, set: setCustomerFilter, placeholder: "ทุกลูกค้า", options: [{ value: "new", label: "ลูกค้าใหม่" }, { value: "existing", label: "ลูกค้าเก่า" }] },
+        ].map(({ value, set, placeholder, options }) => (
+          <select key={placeholder} value={value}
+            onChange={(e) => { set(e.target.value); setPage(1); }}
+            className="text-sm border border-gray-200 rounded-xl bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 min-w-[110px]">
+            <option value="">{placeholder}</option>
+            {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        ))}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
