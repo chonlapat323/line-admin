@@ -82,6 +82,9 @@ export default function VisitsPage() {
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(true);
   const [flyToProvince, setFlyToProvince] = useState<string | undefined>();
+  const [selectedVisit, setSelectedVisit] = useState<VisitRecord | null>(null);
+  const [tablePage, setTablePage] = useState(1);
+  const TABLE_PAGE_SIZE = 20;
 
   useEffect(() => {
     api
@@ -159,6 +162,11 @@ export default function VisitsPage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
   }, [timeFiltered]);
+
+  useEffect(() => { setTablePage(1); }, [filtered]);
+
+  const totalTablePages = Math.ceil(filtered.length / TABLE_PAGE_SIZE);
+  const pagedVisits = filtered.slice((tablePage - 1) * TABLE_PAGE_SIZE, tablePage * TABLE_PAGE_SIZE);
 
   return (
     <div className="space-y-5">
@@ -391,17 +399,13 @@ export default function VisitsPage() {
               </tr>
             )}
             {!loading &&
-              filtered.map((v) => (
-                <tr key={v.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-4">
+              pagedVisits.map((v) => (
+                <tr key={v.id} className="hover:bg-green-50/40 transition-colors cursor-pointer" onClick={() => setSelectedVisit(v)}>
+                  <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                     {v.imageUrls?.[0] ? (
                       <button onClick={() => setPreviewImg(v.imageUrls[0])} className="focus:outline-none">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={v.imageUrls[0]}
-                          alt=""
-                          className="w-10 h-10 rounded-lg object-cover hover:opacity-80 transition-opacity"
-                        />
+                        <img src={v.imageUrls[0]} alt="" className="w-10 h-10 rounded-lg object-cover hover:opacity-80 transition-opacity" />
                       </button>
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300">
@@ -413,44 +417,121 @@ export default function VisitsPage() {
                   </td>
                   <td className="px-5 py-4">
                     <p className="font-medium text-gray-800">{v.shopName}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {v.district ? `${v.province} · ${v.district}` : v.province}
-                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{v.district ? `${v.province} · ${v.district}` : v.province}</p>
                   </td>
-                  <td className="px-5 py-4 hidden md:table-cell text-gray-600">
-                    {v.user?.fullName || "-"}
-                  </td>
-                  <td className="px-5 py-4 hidden md:table-cell text-xs text-gray-500">
-                    {v.tripType ? TRIP_LABEL[v.tripType] : "-"}
-                  </td>
-                  <td className="px-5 py-4 hidden lg:table-cell text-xs text-gray-500">
-                    {v.visitType ? MISSION_LABEL[v.visitType] : "-"}
-                  </td>
+                  <td className="px-5 py-4 hidden md:table-cell text-gray-600">{v.user?.fullName || "-"}</td>
+                  <td className="px-5 py-4 hidden md:table-cell text-xs text-gray-500">{v.tripType ? TRIP_LABEL[v.tripType] : "-"}</td>
+                  <td className="px-5 py-4 hidden lg:table-cell text-xs text-gray-500">{v.visitType ? MISSION_LABEL[v.visitType] : "-"}</td>
                   <td className="px-5 py-4 hidden lg:table-cell text-xs font-semibold text-green-700">
-                    {v.result === "buy" && v.orderAmount != null
-                      ? `฿${v.orderAmount.toLocaleString("th-TH")}`
-                      : "-"}
+                    {v.result === "buy" && v.orderAmount != null ? `฿${v.orderAmount.toLocaleString("th-TH")}` : "-"}
                   </td>
-                  <td className="px-5 py-4">
-                    <ResultBadge result={v.result} />
-                  </td>
+                  <td className="px-5 py-4"><ResultBadge result={v.result} /></td>
                   <td className="px-5 py-4 text-gray-400 text-xs hidden md:table-cell">
-                    {new Date(v.createdAt).toLocaleDateString("th-TH", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {new Date(v.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
                   </td>
                 </tr>
               ))}
           </tbody>
         </table>
         {!loading && filtered.length > 0 && (
-          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-400">
-            แสดง {filtered.length} จาก {visits.length} รายการ
+          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-400 flex items-center justify-between">
+            <span>แสดง {Math.min((tablePage - 1) * TABLE_PAGE_SIZE + 1, filtered.length)}–{Math.min(tablePage * TABLE_PAGE_SIZE, filtered.length)} จาก {filtered.length} รายการ (ทั้งหมด {visits.length})</span>
+            {totalTablePages > 1 && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => setTablePage((p) => Math.max(1, p - 1))} disabled={tablePage === 1} className="px-2 py-1 rounded-lg text-xs text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">‹</button>
+                {Array.from({ length: totalTablePages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalTablePages || Math.abs(p - tablePage) <= 1)
+                  .reduce<(number | "...")[]>((acc, p, i, arr) => {
+                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("...");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((item, i) =>
+                    item === "..." ? (
+                      <span key={`ellipsis-${i}`} className="px-1 text-gray-400">…</span>
+                    ) : (
+                      <button key={item} onClick={() => setTablePage(item as number)} className={`px-2 py-1 rounded-lg text-xs transition-colors ${tablePage === item ? "bg-green-600 text-white font-semibold" : "text-gray-500 hover:bg-gray-200"}`}>{item}</button>
+                    )
+                  )}
+                <button onClick={() => setTablePage((p) => Math.min(totalTablePages, p + 1))} disabled={tablePage === totalTablePages} className="px-2 py-1 rounded-lg text-xs text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">›</button>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Visit Detail Modal */}
+      {selectedVisit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setSelectedVisit(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-start justify-between p-5 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">{selectedVisit.shopName}</h2>
+                <p className="text-sm text-gray-400 mt-0.5">{selectedVisit.district ? `${selectedVisit.province} · ${selectedVisit.district}` : selectedVisit.province}</p>
+              </div>
+              <button onClick={() => setSelectedVisit(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            {/* Details */}
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">เซล</p>
+                  <p className="font-medium text-gray-700">{selectedVisit.user?.fullName || "-"}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">วันที่</p>
+                  <p className="font-medium text-gray-700">{new Date(selectedVisit.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">ทริป</p>
+                  <p className="font-medium text-gray-700">{selectedVisit.tripType ? TRIP_LABEL[selectedVisit.tripType] || selectedVisit.tripType : "-"}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">ลูกค้า</p>
+                  <p className="font-medium text-gray-700">{selectedVisit.customerType || "-"}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">ภารกิจ</p>
+                  <p className="font-medium text-gray-700">{selectedVisit.visitType ? MISSION_LABEL[selectedVisit.visitType] || selectedVisit.visitType : "-"}</p>
+                </div>
+                <div className={`rounded-xl p-3 ${selectedVisit.result === "buy" ? "bg-green-50" : selectedVisit.result === "no_buy" ? "bg-red-50" : "bg-gray-50"}`}>
+                  <p className="text-xs text-gray-400 mb-1">ผลตอบรับ</p>
+                  <ResultBadge result={selectedVisit.result} />
+                </div>
+              </div>
+              {selectedVisit.result === "buy" && selectedVisit.orderAmount != null && (
+                <div className="bg-green-50 border border-green-100 rounded-xl p-4 flex items-center justify-between">
+                  <span className="text-sm text-green-700 font-medium">ยอดสั่งซื้อ</span>
+                  <span className="text-xl font-bold text-green-700">฿{selectedVisit.orderAmount.toLocaleString("th-TH")}</span>
+                </div>
+              )}
+              {selectedVisit.details && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-400 mb-2">บันทึก</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedVisit.details}</p>
+                </div>
+              )}
+              {/* Image Gallery */}
+              {selectedVisit.imageUrls?.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-2">รูปภาพ ({selectedVisit.imageUrls.length})</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedVisit.imageUrls.map((url, i) => (
+                      <button key={i} onClick={() => { setSelectedVisit(null); setPreviewImg(url); }} className="aspect-square rounded-xl overflow-hidden focus:outline-none">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="w-full h-full object-cover hover:opacity-90 transition-opacity" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image Preview Modal */}
       {previewImg && (
