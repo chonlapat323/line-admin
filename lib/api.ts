@@ -46,6 +46,7 @@ export const api = {
     province?: string; result?: string; tripType?: string;
     visitType?: string; customerType?: string; search?: string;
     dateFrom?: string; dateTo?: string;
+    slipStatus?: string;
   } = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });
@@ -57,4 +58,11 @@ export const api = {
     Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, v); });
     return request(`/visits/province-stats?${qs}`);
   },
+
+  approveVisit: (id: string, action: 'approve' | 'reject', amount?: number) =>
+    request(`/visits/${id}/approve`, { method: "PATCH", body: JSON.stringify({ action, amount }) }),
+
+  getSlipSettings: () => request("/settings/slip"),
+  updateSlipSettings: (data: { provider?: string; slip2goSecret?: string; easyslipSecret?: string }) =>
+    request("/settings/slip", { method: "PATCH", body: JSON.stringify(data) }),
 };
