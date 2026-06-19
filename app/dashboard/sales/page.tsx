@@ -32,7 +32,7 @@ interface UserStat {
 
 const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน" };
 const RESULT_LABEL: Record<string, string> = { buy: "ซื้อ", no_buy: "ไม่ซื้อ", not_found: "ไม่พบ" };
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 9;
 
 const MEDAL = [
   { ring: "ring-2 ring-yellow-400", bg: "bg-yellow-50", badge: "bg-yellow-400 text-white", label: "text-yellow-600" },
@@ -40,14 +40,6 @@ const MEDAL = [
   { ring: "ring-2 ring-amber-500",  bg: "bg-amber-50",  badge: "bg-amber-500 text-white",  label: "text-amber-600"  },
 ];
 
-function MiniBar({ value, total, color }: { value: number; total: number; color: string }) {
-  const pct = total > 0 ? (value / total) * 100 : 0;
-  return (
-    <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1">
-      <div className={`h-1.5 rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
 
 function ResultPill({ result }: { result?: string }) {
   if (!result) return <span className="text-gray-300 text-xs">—</span>;
@@ -149,65 +141,72 @@ function SaleRow({ s, rank, expanded, onToggle }: {
   s: UserStat; rank: number; expanded: boolean; onToggle: () => void;
 }) {
   const buyRate = s.total > 0 ? Math.round((s.buy / s.total) * 100) : 0;
-  const topProv = Object.entries(s.provinces).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const topProv = Object.entries(s.provinces).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <button className="w-full text-left p-5 hover:bg-gray-50 transition-colors" onClick={onToggle}>
-        <div className="flex items-center justify-between">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden w-full min-w-0">
+      <button className="w-full text-left p-5 hover:opacity-90 transition-opacity" onClick={onToggle}>
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-6 text-center text-sm font-bold text-gray-400">{rank}</div>
-            <Avatar name={s.name} />
+            <div className="relative flex-shrink-0">
+              <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center text-base font-bold text-green-700">
+                {s.name.charAt(0)}
+              </div>
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs font-black flex items-center justify-center bg-gray-300 text-gray-700">
+                {rank}
+              </span>
+            </div>
             <div>
-              <p className="font-semibold text-gray-800 text-sm">{s.name}</p>
+              <p className="font-bold text-gray-800 text-sm">{s.name}</p>
               <p className="text-xs text-gray-400">{s.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-gray-400 hidden sm:block">{s.total} ครั้ง</span>
-            <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
+          <div className="text-right">
+            <p className="text-2xl font-black text-gray-800 tabular-nums">{s.total}</p>
+            <p className="text-xs text-gray-400">ครั้ง</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mt-4">
-          <div className="bg-green-50 rounded-xl p-3">
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="bg-white/70 rounded-xl p-2.5 text-center border border-gray-100">
             <p className="text-xs text-green-600 font-medium">ซื้อ</p>
-            <p className="text-2xl font-bold text-green-700 tabular-nums">{s.buy}</p>
-            <MiniBar value={s.buy} total={s.total} color="bg-green-500" />
-            <p className="text-xs text-green-500 mt-1">{buyRate}%</p>
+            <p className="text-lg font-bold text-green-700 tabular-nums">{s.buy}</p>
+            <p className="text-xs text-green-500">{buyRate}%</p>
           </div>
-          <div className="bg-red-50 rounded-xl p-3">
+          <div className="bg-white/70 rounded-xl p-2.5 text-center border border-gray-100">
             <p className="text-xs text-red-500 font-medium">ไม่ซื้อ</p>
-            <p className="text-2xl font-bold text-red-600 tabular-nums">{s.noBuy}</p>
-            <MiniBar value={s.noBuy} total={s.total} color="bg-red-400" />
-            <p className="text-xs text-red-400 mt-1">{s.total > 0 ? Math.round((s.noBuy / s.total) * 100) : 0}%</p>
+            <p className="text-lg font-bold text-red-600 tabular-nums">{s.noBuy}</p>
+            <p className="text-xs text-red-400">{s.total > 0 ? Math.round((s.noBuy / s.total) * 100) : 0}%</p>
           </div>
-          <div className="bg-gray-50 rounded-xl p-3">
+          <div className="bg-white/70 rounded-xl p-2.5 text-center border border-gray-100">
             <p className="text-xs text-gray-500 font-medium">ไม่พบ</p>
-            <p className="text-2xl font-bold text-gray-500 tabular-nums">{s.notFound}</p>
-            <MiniBar value={s.notFound} total={s.total} color="bg-gray-400" />
-            <p className="text-xs text-gray-400 mt-1">{s.total > 0 ? Math.round((s.notFound / s.total) * 100) : 0}%</p>
+            <p className="text-lg font-bold text-gray-600 tabular-nums">{s.notFound}</p>
+            <p className="text-xs text-gray-400">{s.total > 0 ? Math.round((s.notFound / s.total) * 100) : 0}%</p>
           </div>
         </div>
 
         {s.totalAmount > 0 && (
-          <p className="text-xs font-semibold text-green-700 mt-2">
+          <p className="text-xs font-semibold text-green-700 mb-2">
             ยอดรวม ฿{s.totalAmount.toLocaleString("th-TH")}
           </p>
         )}
 
         {topProv.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-3">
+          <div className="flex gap-1.5 overflow-hidden">
             {topProv.map(([prov, cnt]) => (
-              <span key={prov} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
-                {prov} <span className="font-semibold text-gray-800">{cnt}</span>
+              <span key={prov} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 flex-shrink-0">
+                {prov} <span className="font-bold text-gray-800">{cnt}</span>
               </span>
             ))}
           </div>
         )}
+
+        <div className="flex justify-end mt-3">
+          <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
       </button>
 
       {expanded && <VisitList visits={s.visits} total={s.visits.length} />}
@@ -423,7 +422,7 @@ export default function SalesPage() {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
                 อันดับที่ {leaderboard.length + 1}–{leaderboard.length + restStats.length}
               </p>
-              <div className="space-y-3">
+              <div className="grid sm:grid-cols-3 gap-3">
                 {pagedStats.map((s, i) => (
                   <SaleRow key={s.email} s={s} rank={leaderboard.length + (page - 1) * PAGE_SIZE + i + 1}
                     expanded={expanded === s.email} onToggle={() => handleToggle(s.email)} />
