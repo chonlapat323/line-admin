@@ -123,9 +123,9 @@ function LeaderboardCard({ s, rank, expanded, onToggle }: {
         )}
 
         {topProv.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex gap-1.5 overflow-hidden">
             {topProv.map(([prov, cnt]) => (
-              <span key={prov} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white/80 text-gray-600">
+              <span key={prov} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white/80 text-gray-600 flex-shrink-0">
                 {prov} <span className="font-bold text-gray-800">{cnt}</span>
               </span>
             ))}
@@ -510,7 +510,7 @@ export default function SalesPage() {
                       </div>
                       <p className="text-sm font-bold text-gray-800 tabular-nums">{cnt}</p>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5 ml-6">
+                    <div className="bg-gray-100 rounded-full h-1.5 ml-6">
                       <div className="bg-green-400 h-1.5 rounded-full transition-all duration-500"
                         style={{ width: `${topProvinces[0][1] > 0 ? (cnt / topProvinces[0][1]) * 100 : 0}%` }} />
                     </div>
