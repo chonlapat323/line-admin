@@ -12,6 +12,7 @@ interface VisitRecord {
   customerType: string;
   visitType?: string;
   result?: string;
+  orderAmount?: number | null;
   imageUrls: string[];
   createdAt: string;
   user?: { fullName: string; email: string };
@@ -24,12 +25,20 @@ interface UserStat {
   buy: number;
   noBuy: number;
   notFound: number;
+  totalAmount: number;
   provinces: Record<string, number>;
   visits: VisitRecord[];
 }
 
 const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน" };
 const RESULT_LABEL: Record<string, string> = { buy: "ซื้อ", no_buy: "ไม่ซื้อ", not_found: "ไม่พบ" };
+const PAGE_SIZE = 10;
+
+const MEDAL = [
+  { ring: "ring-2 ring-yellow-400", bg: "bg-yellow-50", badge: "bg-yellow-400 text-white", label: "text-yellow-600" },
+  { ring: "ring-2 ring-gray-300",   bg: "bg-gray-50",   badge: "bg-gray-400 text-white",   label: "text-gray-500"   },
+  { ring: "ring-2 ring-amber-500",  bg: "bg-amber-50",  badge: "bg-amber-500 text-white",  label: "text-amber-600"  },
+];
 
 function MiniBar({ value, total, color }: { value: number; total: number; color: string }) {
   const pct = total > 0 ? (value / total) * 100 : 0;
@@ -49,6 +58,201 @@ function ResultPill({ result }: { result?: string }) {
   return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>{RESULT_LABEL[result]}</span>;
 }
 
+function Avatar({ name, rank }: { name: string; rank?: number }) {
+  const medal = rank !== undefined && rank < 3 ? MEDAL[rank] : null;
+  return (
+    <div className="relative flex-shrink-0">
+      <div className={`w-11 h-11 rounded-full bg-green-100 flex items-center justify-center text-base font-bold text-green-700 ${medal?.ring ?? ""}`}>
+        {name.charAt(0)}
+      </div>
+      {medal && (
+        <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs font-black flex items-center justify-center ${medal.badge}`}>
+          {rank! + 1}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function LeaderboardCard({ s, rank, expanded, onToggle }: {
+  s: UserStat; rank: number; expanded: boolean; onToggle: () => void;
+}) {
+  const medal = MEDAL[rank];
+  const buyRate = s.total > 0 ? Math.round((s.buy / s.total) * 100) : 0;
+  const topProv = Object.entries(s.provinces).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  return (
+    <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${medal.bg}`}>
+      <button className="w-full text-left p-5 hover:opacity-90 transition-opacity" onClick={onToggle}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Avatar name={s.name} rank={rank} />
+            <div>
+              <p className="font-bold text-gray-800 text-sm">{s.name}</p>
+              <p className="text-xs text-gray-400">{s.email}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-black text-gray-800 tabular-nums">{s.total}</p>
+            <p className="text-xs text-gray-400">ครั้ง</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="bg-white/70 rounded-xl p-2.5 text-center">
+            <p className="text-xs text-green-600 font-medium">ซื้อ</p>
+            <p className="text-lg font-bold text-green-700 tabular-nums">{s.buy}</p>
+            <p className="text-xs text-green-500">{buyRate}%</p>
+          </div>
+          <div className="bg-white/70 rounded-xl p-2.5 text-center">
+            <p className="text-xs text-red-500 font-medium">ไม่ซื้อ</p>
+            <p className="text-lg font-bold text-red-600 tabular-nums">{s.noBuy}</p>
+            <p className="text-xs text-red-400">{s.total > 0 ? Math.round((s.noBuy / s.total) * 100) : 0}%</p>
+          </div>
+          <div className="bg-white/70 rounded-xl p-2.5 text-center">
+            <p className="text-xs text-gray-500 font-medium">ไม่พบ</p>
+            <p className="text-lg font-bold text-gray-600 tabular-nums">{s.notFound}</p>
+            <p className="text-xs text-gray-400">{s.total > 0 ? Math.round((s.notFound / s.total) * 100) : 0}%</p>
+          </div>
+        </div>
+
+        {s.totalAmount > 0 && (
+          <p className="text-xs font-semibold text-green-700 mb-2">
+            ยอดรวม ฿{s.totalAmount.toLocaleString("th-TH")}
+          </p>
+        )}
+
+        {topProv.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {topProv.map(([prov, cnt]) => (
+              <span key={prov} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white/80 text-gray-600">
+                {prov} <span className="font-bold text-gray-800">{cnt}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end mt-3">
+          <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {expanded && <VisitList visits={s.visits} total={s.visits.length} />}
+    </div>
+  );
+}
+
+function SaleRow({ s, rank, expanded, onToggle }: {
+  s: UserStat; rank: number; expanded: boolean; onToggle: () => void;
+}) {
+  const buyRate = s.total > 0 ? Math.round((s.buy / s.total) * 100) : 0;
+  const topProv = Object.entries(s.provinces).sort((a, b) => b[1] - a[1]).slice(0, 4);
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <button className="w-full text-left p-5 hover:bg-gray-50 transition-colors" onClick={onToggle}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-6 text-center text-sm font-bold text-gray-400">{rank}</div>
+            <Avatar name={s.name} />
+            <div>
+              <p className="font-semibold text-gray-800 text-sm">{s.name}</p>
+              <p className="text-xs text-gray-400">{s.email}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-gray-400 hidden sm:block">{s.total} ครั้ง</span>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          <div className="bg-green-50 rounded-xl p-3">
+            <p className="text-xs text-green-600 font-medium">ซื้อ</p>
+            <p className="text-2xl font-bold text-green-700 tabular-nums">{s.buy}</p>
+            <MiniBar value={s.buy} total={s.total} color="bg-green-500" />
+            <p className="text-xs text-green-500 mt-1">{buyRate}%</p>
+          </div>
+          <div className="bg-red-50 rounded-xl p-3">
+            <p className="text-xs text-red-500 font-medium">ไม่ซื้อ</p>
+            <p className="text-2xl font-bold text-red-600 tabular-nums">{s.noBuy}</p>
+            <MiniBar value={s.noBuy} total={s.total} color="bg-red-400" />
+            <p className="text-xs text-red-400 mt-1">{s.total > 0 ? Math.round((s.noBuy / s.total) * 100) : 0}%</p>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-3">
+            <p className="text-xs text-gray-500 font-medium">ไม่พบ</p>
+            <p className="text-2xl font-bold text-gray-500 tabular-nums">{s.notFound}</p>
+            <MiniBar value={s.notFound} total={s.total} color="bg-gray-400" />
+            <p className="text-xs text-gray-400 mt-1">{s.total > 0 ? Math.round((s.notFound / s.total) * 100) : 0}%</p>
+          </div>
+        </div>
+
+        {s.totalAmount > 0 && (
+          <p className="text-xs font-semibold text-green-700 mt-2">
+            ยอดรวม ฿{s.totalAmount.toLocaleString("th-TH")}
+          </p>
+        )}
+
+        {topProv.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {topProv.map(([prov, cnt]) => (
+              <span key={prov} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+                {prov} <span className="font-semibold text-gray-800">{cnt}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </button>
+
+      {expanded && <VisitList visits={s.visits} total={s.visits.length} />}
+    </div>
+  );
+}
+
+function VisitList({ visits, total }: { visits: VisitRecord[]; total: number }) {
+  return (
+    <div className="border-t border-gray-100">
+      <div className="px-5 py-3 bg-gray-50">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">ประวัติการเยี่ยม ({total} รายการ)</p>
+      </div>
+      <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+        {visits.map((v) => (
+          <div key={v.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50">
+            {v.imageUrls?.[0] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={v.imageUrls[0]} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-gray-100 flex-shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-800 truncate">{v.shopName}</p>
+              <p className="text-xs text-gray-400">
+                {v.district ? `${v.province} · ${v.district}` : v.province}
+                {v.tripType ? ` · ${TRIP_LABEL[v.tripType]}` : ""}
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+              <ResultPill result={v.result} />
+              {v.result === "buy" && v.orderAmount != null && (
+                <p className="text-xs font-semibold text-green-600">฿{v.orderAmount.toLocaleString("th-TH")}</p>
+              )}
+              <p className="text-xs text-gray-300">
+                {new Date(v.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SalesPage() {
   const [visits, setVisits] = useState<VisitRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +260,8 @@ export default function SalesPage() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     api.getVisits()
@@ -78,13 +284,14 @@ export default function SalesPage() {
           name: v.user?.fullName || "ไม่ระบุ",
           email: key,
           total: 0, buy: 0, noBuy: 0, notFound: 0,
+          totalAmount: 0,
           provinces: {},
           visits: [],
         };
       }
       const s = map[key];
       s.total++;
-      if (v.result === "buy") s.buy++;
+      if (v.result === "buy") { s.buy++; s.totalAmount += v.orderAmount ?? 0; }
       else if (v.result === "no_buy") s.noBuy++;
       else if (v.result === "not_found") s.notFound++;
       s.provinces[v.province] = (s.provinces[v.province] || 0) + 1;
@@ -92,6 +299,17 @@ export default function SalesPage() {
     }
     return Object.values(map).sort((a, b) => b.total - a.total);
   }, [filtered]);
+
+  const displayStats = useMemo(() => {
+    if (!search.trim()) return userStats;
+    const q = search.toLowerCase();
+    return userStats.filter((s) => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
+  }, [userStats, search]);
+
+  const leaderboard = displayStats.slice(0, 3);
+  const restStats = displayStats.slice(3);
+  const totalPages = Math.ceil(restStats.length / PAGE_SIZE);
+  const pagedStats = restStats.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const range = getDateRange(period, customFrom, customTo);
   const periodLabel = range
@@ -104,6 +322,8 @@ export default function SalesPage() {
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
   }, [filtered]);
 
+  const handleToggle = (email: string) => setExpanded((e) => (e === email ? null : email));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -114,11 +334,11 @@ export default function SalesPage() {
         </p>
       </div>
 
-      {/* Period filter */}
-      <div className="flex items-center gap-3">
+      {/* Period filter + Search */}
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl flex-shrink-0">
           {PERIOD_OPTIONS.map((p) => (
-            <button key={p.value} onClick={() => setPeriod(p.value)}
+            <button key={p.value} onClick={() => { setPeriod(p.value); setPage(1); }}
               className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                 period === p.value ? "bg-white text-green-700 shadow-sm font-semibold" : "text-gray-500 hover:text-gray-700"
               }`}>{p.label}</button>
@@ -134,12 +354,85 @@ export default function SalesPage() {
               className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 bg-white" />
           </div>
         </div>
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+          </svg>
+          <input type="text" placeholder="ค้นหาเซล..."
+            value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-green-400" />
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Main: user stats table */}
-        <div className="lg:col-span-2 space-y-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">ยอดแต่ละเซล</p>
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* Leaderboard */}
+          {!loading && leaderboard.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">🏆 Leaderboard</p>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {leaderboard.map((s, i) => (
+                  <LeaderboardCard key={s.email} s={s} rank={i}
+                    expanded={expanded === s.email} onToggle={() => handleToggle(s.email)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Rest of list */}
+          {!loading && restStats.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                อันดับที่ {leaderboard.length + 1}–{leaderboard.length + restStats.length}
+              </p>
+              <div className="space-y-3">
+                {pagedStats.map((s, i) => (
+                  <SaleRow key={s.email} s={s} rank={leaderboard.length + (page - 1) * PAGE_SIZE + i + 1}
+                    expanded={expanded === s.email} onToggle={() => handleToggle(s.email)} />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 px-1">
+                  <p className="text-xs text-gray-400">
+                    หน้า {page} / {totalPages} · {restStats.length} คน
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+                      className="px-3 py-1.5 text-sm rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                      ← ก่อนหน้า
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                      .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                        if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, i) =>
+                        p === "..." ? (
+                          <span key={`ellipsis-${i}`} className="text-gray-400 text-sm px-1">…</span>
+                        ) : (
+                          <button key={p} onClick={() => setPage(p as number)}
+                            className={`w-8 h-8 text-sm rounded-xl font-medium transition-colors ${
+                              page === p ? "bg-green-500 text-white" : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                            }`}>
+                            {p}
+                          </button>
+                        )
+                      )}
+                    <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                      className="px-3 py-1.5 text-sm rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                      ถัดไป →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {loading && Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse">
@@ -148,125 +441,25 @@ export default function SalesPage() {
                 <div className="space-y-1.5"><div className="h-3.5 w-28 bg-gray-200 rounded" /><div className="h-3 w-20 bg-gray-200 rounded" /></div>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                {[1,2,3].map(j => <div key={j} className="h-12 bg-gray-100 rounded-xl" />)}
+                {[1, 2, 3].map((j) => <div key={j} className="h-12 bg-gray-100 rounded-xl" />)}
               </div>
             </div>
           ))}
 
-          {!loading && userStats.length === 0 && (
+          {!loading && displayStats.length === 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400">
-              <p className="text-sm">ไม่มีข้อมูลในช่วงนี้</p>
+              <p className="text-sm">{search ? "ไม่พบเซลที่ค้นหา" : "ไม่มีข้อมูลในช่วงนี้"}</p>
             </div>
           )}
-
-          {!loading && userStats.map((s) => {
-            const buyRate = s.total > 0 ? Math.round((s.buy / s.total) * 100) : 0;
-            const isOpen = expanded === s.email;
-            const topProv = Object.entries(s.provinces).sort((a, b) => b[1] - a[1]).slice(0, 4);
-
-            return (
-              <div key={s.email} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                {/* Header row */}
-                <button className="w-full text-left p-5 hover:bg-gray-50 transition-colors"
-                  onClick={() => setExpanded(isOpen ? null : s.email)}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-sm font-bold text-green-700 flex-shrink-0">
-                        {s.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-800 text-sm">{s.name}</p>
-                        <p className="text-xs text-gray-400">{s.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs text-gray-400 hidden sm:block">{s.total} ครั้ง</span>
-                      <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  {/* Stats row */}
-                  <div className="grid grid-cols-3 gap-3 mt-4">
-                    <div className="bg-green-50 rounded-xl p-3">
-                      <p className="text-xs text-green-600 font-medium">ซื้อ</p>
-                      <p className="text-2xl font-bold text-green-700 tabular-nums">{s.buy}</p>
-                      <MiniBar value={s.buy} total={s.total} color="bg-green-500" />
-                      <p className="text-xs text-green-500 mt-1">{buyRate}%</p>
-                    </div>
-                    <div className="bg-red-50 rounded-xl p-3">
-                      <p className="text-xs text-red-500 font-medium">ไม่ซื้อ</p>
-                      <p className="text-2xl font-bold text-red-600 tabular-nums">{s.noBuy}</p>
-                      <MiniBar value={s.noBuy} total={s.total} color="bg-red-400" />
-                      <p className="text-xs text-red-400 mt-1">{s.total > 0 ? Math.round((s.noBuy/s.total)*100) : 0}%</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-xl p-3">
-                      <p className="text-xs text-gray-500 font-medium">ไม่พบ</p>
-                      <p className="text-2xl font-bold text-gray-500 tabular-nums">{s.notFound}</p>
-                      <MiniBar value={s.notFound} total={s.total} color="bg-gray-400" />
-                      <p className="text-xs text-gray-400 mt-1">{s.total > 0 ? Math.round((s.notFound/s.total)*100) : 0}%</p>
-                    </div>
-                  </div>
-
-                  {/* Province pills */}
-                  {topProv.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {topProv.map(([prov, cnt]) => (
-                        <span key={prov} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
-                          {prov} <span className="font-semibold text-gray-800">{cnt}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </button>
-
-                {/* Expanded: visit history */}
-                {isOpen && (
-                  <div className="border-t border-gray-100">
-                    <div className="px-5 py-3 bg-gray-50">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">ประวัติการเยี่ยม ({s.visits.length} รายการ)</p>
-                    </div>
-                    <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
-                      {s.visits.map((v) => (
-                        <div key={v.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50">
-                          {v.imageUrls?.[0] ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img src={v.imageUrls[0]} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex-shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate">{v.shopName}</p>
-                            <p className="text-xs text-gray-400">
-                              {v.district ? `${v.province} · ${v.district}` : v.province}
-                              {v.tripType ? ` · ${TRIP_LABEL[v.tripType]}` : ""}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                            <ResultPill result={v.result} />
-                            <p className="text-xs text-gray-300">
-                              {new Date(v.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
 
-        {/* Sidebar: top provinces overall */}
+        {/* Sidebar */}
         <div className="space-y-3">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">จังหวัดยอดนิยม</p>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             {loading ? (
               <div className="space-y-3">
-                {[1,2,3,4,5].map(i => <div key={i} className="h-8 bg-gray-100 animate-pulse rounded-xl" />)}
+                {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-8 bg-gray-100 animate-pulse rounded-xl" />)}
               </div>
             ) : topProvinces.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-4">ยังไม่มีข้อมูล</p>
@@ -291,15 +484,14 @@ export default function SalesPage() {
             )}
           </div>
 
-          {/* Summary card */}
           {!loading && filtered.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">สรุปภาพรวม</p>
               {[
                 { label: "เยี่ยมทั้งหมด", value: filtered.length, color: "text-gray-800" },
-                { label: "ซื้อ", value: filtered.filter(v => v.result === "buy").length, color: "text-green-600" },
-                { label: "ไม่ซื้อ", value: filtered.filter(v => v.result === "no_buy").length, color: "text-red-500" },
-                { label: "ไม่พบ", value: filtered.filter(v => v.result === "not_found").length, color: "text-gray-400" },
+                { label: "ซื้อ", value: filtered.filter((v) => v.result === "buy").length, color: "text-green-600" },
+                { label: "ไม่ซื้อ", value: filtered.filter((v) => v.result === "no_buy").length, color: "text-red-500" },
+                { label: "ไม่พบ", value: filtered.filter((v) => v.result === "not_found").length, color: "text-gray-400" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="flex items-center justify-between">
                   <p className="text-sm text-gray-500">{label}</p>
@@ -310,7 +502,7 @@ export default function SalesPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-gray-500">อัตราซื้อรวม</p>
                   <p className="text-sm font-bold text-green-600">
-                    {Math.round((filtered.filter(v => v.result === "buy").length / filtered.length) * 100)}%
+                    {Math.round((filtered.filter((v) => v.result === "buy").length / filtered.length) * 100)}%
                   </p>
                 </div>
               </div>
