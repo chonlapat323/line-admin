@@ -1,10 +1,11 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
-import { filterByDateRange, PERIOD_OPTIONS, type Period } from "@/lib/date-filter";
-import type { VisitsMapProps, ProvinceStats } from "@/components/visits-map";
+import { getDateRange, PERIOD_OPTIONS, type Period } from "@/lib/date-filter";
+import type { ProvinceStats } from "@/components/visits-map";
+import { PROVINCE_CENTROIDS } from "@/lib/province-centroids";
 
 const VisitsMap = dynamic(() => import("@/components/visits-map"), {
   ssr: false,
@@ -62,9 +63,10 @@ function ResultBadge({ result }: { result?: string }) {
   );
 }
 
+const EMPTY_STATS = { total: 0, buy: 0, noBuy: 0, notFound: 0, totalAmount: 0 };
+
 export default function VisitsPage() {
   const { toast } = useToast();
-  const [visits, setVisits] = useState<VisitRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -72,6 +74,7 @@ export default function VisitsPage() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [resultFilter, setResultFilter] = useState("");
   const [tripFilter, setTripFilter] = useState("");
   const [visitTypeFilter, setVisitTypeFilter] = useState("");
@@ -86,87 +89,75 @@ export default function VisitsPage() {
   const [tablePage, setTablePage] = useState(1);
   const TABLE_PAGE_SIZE = 20;
 
+  // API response
+  const [pageData, setPageData] = useState<{
+    data: VisitRecord[]; total: number; page: number; totalPages: number;
+    stats: typeof EMPTY_STATS;
+  }>({ data: [], total: 0, page: 1, totalPages: 1, stats: EMPTY_STATS });
+  const [provinceStatsData, setProvinceStatsData] = useState<Record<string, ProvinceStats>>({});
+
+  // Debounce search 300ms
   useEffect(() => {
-    api
-      .getVisits()
-      .then(setVisits)
-      .catch(() => toast("โหลดข้อมูลล้มเหลว", "error"))
-      .finally(() => setLoading(false));
-  }, []);
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const provinces = useMemo(
-    () => Array.from(new Set(visits.map((v) => v.province))).sort(),
-    [visits]
-  );
+  // Fetch whenever filter or page changes
+  const filterKey = `${period}|${customFrom}|${customTo}|${provinceFilter}|${resultFilter}|${tripFilter}|${visitTypeFilter}|${customerFilter}|${debouncedSearch}`;
+  const filterKeyRef = useRef(filterKey);
 
-  const filtered = useMemo(() => {
-    let result = visits;
+  useEffect(() => {
+    let cancelled = false;
+    let effectivePage = tablePage;
 
-    if (period !== "all") {
-      result = filterByDateRange(result, period as Period, customFrom, customTo);
+    if (filterKeyRef.current !== filterKey) {
+      filterKeyRef.current = filterKey;
+      effectivePage = 1;
+      setTablePage(1);
     }
 
-    const q = search.toLowerCase();
-    if (q) {
-      result = result.filter(
-        (v) =>
-          v.shopName.toLowerCase().includes(q) ||
-          v.province.toLowerCase().includes(q) ||
-          (v.user?.fullName.toLowerCase().includes(q) ?? false)
-      );
-    }
+    const dateRange = (() => {
+      if (period === "all") return {};
+      const r = getDateRange(period as Period, customFrom, customTo);
+      return r ? { dateFrom: r.start.toISOString(), dateTo: r.end.toISOString() } : {};
+    })();
 
-    if (resultFilter) result = result.filter((v) => v.result === resultFilter);
-    if (tripFilter) result = result.filter((v) => v.tripType === tripFilter);
-    if (visitTypeFilter) result = result.filter((v) => v.visitType === visitTypeFilter);
-    if (customerFilter) result = result.filter((v) => v.customerType === customerFilter);
-    if (provinceFilter) result = result.filter((v) => v.province === provinceFilter);
+    setLoading(true);
+    Promise.all([
+      api.getVisits({
+        page: effectivePage, limit: TABLE_PAGE_SIZE,
+        province: provinceFilter || undefined,
+        result: resultFilter || undefined,
+        tripType: tripFilter || undefined,
+        visitType: visitTypeFilter || undefined,
+        customerType: customerFilter || undefined,
+        search: debouncedSearch || undefined,
+        ...dateRange,
+      }),
+      api.getVisitProvinceStats(dateRange),
+    ])
+      .then(([data, pStats]) => {
+        if (!cancelled) { setPageData(data); setProvinceStatsData(pStats); }
+      })
+      .catch(() => { if (!cancelled) toast("โหลดข้อมูลล้มเหลว", "error"); })
+      .finally(() => { if (!cancelled) setLoading(false); });
 
-    return result;
-  }, [visits, period, customFrom, customTo, search, resultFilter, tripFilter, visitTypeFilter, customerFilter, provinceFilter]);
+    return () => { cancelled = true; };
+  }, [tablePage, filterKey]);
 
-  const stats = useMemo(() => {
-    const total = filtered.length;
-    const buy = filtered.filter((v) => v.result === "buy").length;
-    const noBuy = filtered.filter((v) => v.result === "no_buy").length;
-    const notFound = filtered.filter((v) => v.result === "not_found").length;
-    const totalAmount = filtered
-      .filter((v) => v.result === "buy" && v.orderAmount != null)
-      .reduce((s, v) => s + (v.orderAmount ?? 0), 0);
-    return { total, buy, noBuy, notFound, totalAmount };
-  }, [filtered]);
+  const provinces = useMemo(() => Object.keys(PROVINCE_CENTROIDS).sort(), []);
 
-  const provinceStats = useMemo<Record<string, ProvinceStats>>(() => {
-    const acc: Record<string, ProvinceStats> = {};
-    for (const v of filtered) {
-      if (!acc[v.province]) acc[v.province] = { total: 0, buy: 0, noBuy: 0, notFound: 0 };
-      acc[v.province].total++;
-      if (v.result === "buy") acc[v.province].buy++;
-      else if (v.result === "no_buy") acc[v.province].noBuy++;
-      else if (v.result === "not_found") acc[v.province].notFound++;
-    }
-    return acc;
-  }, [filtered]);
+  const topProvinces = useMemo(() =>
+    Object.entries(provinceStatsData)
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 5)
+      .map(([name, s]) => [name, s.total] as [string, number]),
+  [provinceStatsData]);
 
-  const timeFiltered = useMemo(() => {
-    if (period === "all") return visits;
-    return filterByDateRange(visits, period as Period, customFrom, customTo);
-  }, [visits, period, customFrom, customTo]);
-
-  const topProvinces = useMemo(() => {
-    const acc: Record<string, number> = {};
-    for (const v of timeFiltered) {
-      acc[v.province] = (acc[v.province] || 0) + 1;
-    }
-    return Object.entries(acc)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-  }, [timeFiltered]);
-
-  useEffect(() => { setTablePage(1); }, [filtered]);
-
-  const totalTablePages = Math.ceil(filtered.length / TABLE_PAGE_SIZE);
-  const pagedVisits = filtered.slice((tablePage - 1) * TABLE_PAGE_SIZE, tablePage * TABLE_PAGE_SIZE);
+  const stats = pageData.stats;
+  const totalTablePages = pageData.totalPages;
+  const pagedVisits = pageData.data;
+  const provinceStats = provinceStatsData;
 
   return (
     <div className="space-y-5">
@@ -174,7 +165,7 @@ export default function VisitsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">ประวัติการเยี่ยมร้าน</h2>
-          <p className="text-sm text-gray-400 mt-0.5">{visits.length} รายการทั้งหมด</p>
+          <p className="text-sm text-gray-400 mt-0.5">{pageData.total} รายการ{Object.values({ provinceFilter, resultFilter, tripFilter, visitTypeFilter, customerFilter, search: debouncedSearch }).some(Boolean) || period !== "all" ? " (กรอง)" : "ทั้งหมด"}</p>
         </div>
         <button
           onClick={() => setShowMap((v) => !v)}
@@ -349,7 +340,7 @@ export default function VisitsPage() {
               <span className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded-sm inline-block" style={{ background: "rgba(134,239,172,0.65)" }} />เยี่ยมน้อย
               </span>
-              <span className="text-gray-400">{Object.keys(provinceStats).length} จังหวัด</span>
+              <span className="text-gray-400">{Object.keys(provinceStatsData).length} จังหวัด</span>
             </div>
           </div>
           <VisitsMap provinceStats={provinceStats} flyToProvince={flyToProvince} />
@@ -385,7 +376,7 @@ export default function VisitsPage() {
                   <td className="px-5 py-4 hidden md:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
                 </tr>
               ))}
-            {!loading && filtered.length === 0 && (
+            {!loading && pageData.total === 0 && (
               <tr>
                 <td colSpan={8} className="px-5 py-14 text-center">
                   <div className="text-gray-400">
@@ -433,9 +424,9 @@ export default function VisitsPage() {
               ))}
           </tbody>
         </table>
-        {!loading && filtered.length > 0 && (
+        {!loading && pageData.total > 0 && (
           <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-400 flex items-center justify-between">
-            <span>แสดง {Math.min((tablePage - 1) * TABLE_PAGE_SIZE + 1, filtered.length)}–{Math.min(tablePage * TABLE_PAGE_SIZE, filtered.length)} จาก {filtered.length} รายการ (ทั้งหมด {visits.length})</span>
+            <span>แสดง {Math.min((tablePage - 1) * TABLE_PAGE_SIZE + 1, pageData.total)}–{Math.min(tablePage * TABLE_PAGE_SIZE, pageData.total)} จาก {pageData.total} รายการ</span>
             {totalTablePages > 1 && (
               <div className="flex items-center gap-1">
                 <button onClick={() => setTablePage((p) => Math.max(1, p - 1))} disabled={tablePage === 1} className="px-2 py-1 rounded-lg text-xs text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">‹</button>

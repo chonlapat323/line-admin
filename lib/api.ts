@@ -41,5 +41,20 @@ export const api = {
   sendToAll: (formData: FormData) =>
     request("/line/send-all", { method: "POST", body: formData, headers: {} }),
 
-  getVisits: () => request("/visits"),
+  getVisits: (params: {
+    page?: number; limit?: number;
+    province?: string; result?: string; tripType?: string;
+    visitType?: string; customerType?: string; search?: string;
+    dateFrom?: string; dateTo?: string;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });
+    return request(`/visits?${qs}`);
+  },
+
+  getVisitProvinceStats: (params: { dateFrom?: string; dateTo?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, v); });
+    return request(`/visits/province-stats?${qs}`);
+  },
 };
