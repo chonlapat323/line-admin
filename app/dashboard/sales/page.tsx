@@ -215,14 +215,20 @@ function SaleRow({ s, rank, expanded, onToggle }: {
   );
 }
 
+const VISIT_LIST_LIMIT = 20;
+
 function VisitList({ visits, total }: { visits: VisitRecord[]; total: number }) {
+  const shown = visits.slice(0, VISIT_LIST_LIMIT);
   return (
     <div className="border-t border-gray-100">
-      <div className="px-5 py-3 bg-gray-50">
+      <div className="px-5 py-3 bg-gray-50 flex items-center justify-between">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">ประวัติการเยี่ยม ({total} รายการ)</p>
+        {total > VISIT_LIST_LIMIT && (
+          <p className="text-xs text-gray-400">แสดง {VISIT_LIST_LIMIT} ล่าสุด</p>
+        )}
       </div>
       <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
-        {visits.map((v) => (
+        {shown.map((v) => (
           <div key={v.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50">
             {v.imageUrls?.[0] ? (
               // eslint-disable-next-line @next/next/no-img-element
