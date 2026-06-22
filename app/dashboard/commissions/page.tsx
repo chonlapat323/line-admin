@@ -260,6 +260,7 @@ function HistoryTab() {
   const [loading, setLoading] = useState(true);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const [users, setUsers] = useState<{ id: string; fullName: string }[]>([]);
+  const [breakdownPayment, setBreakdownPayment] = useState<Payment | null>(null);
 
   // Filters
   const [historyMonth, setHistoryMonth] = useState(getCurrentMonth());
@@ -310,19 +311,17 @@ function HistoryTab() {
         {/* Row 1: Month navigation */}
         <div className="flex gap-2 items-center">
           <button onClick={() => setHistoryMonth(stepMonth(historyMonth, -1))}
-            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 text-base font-bold transition-colors">
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 text-lg font-bold transition-colors">
             ‹
           </button>
-          <input
-            type="month"
-            value={historyMonth}
-            max={currentMonth}
-            onChange={(e) => setHistoryMonth(e.target.value)}
-            className="px-3 py-1.5 text-sm rounded-xl font-semibold border-0 focus:outline-none focus:ring-2 focus:ring-green-400 bg-green-500 text-white [color-scheme:dark] transition-colors"
-          />
+          <div className="flex-1 flex justify-center">
+            <span className="text-sm font-bold text-gray-800">
+              {new Date(historyMonth + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" })}
+            </span>
+          </div>
           <button onClick={() => setHistoryMonth(stepMonth(historyMonth, 1))}
             disabled={isCurrentMonth}
-            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 text-base font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 text-lg font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
             ›
           </button>
         </div>
@@ -389,6 +388,7 @@ function HistoryTab() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">หมายเหตุ</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">จ่ายโดย</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">วันที่จ่าย</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -432,6 +432,12 @@ function HistoryTab() {
                     {new Date(p.paidAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
                     <br />{new Date(p.paidAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
                   </td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => setBreakdownPayment(p)}
+                      className="text-xs font-medium text-green-600 hover:text-green-700 hover:underline whitespace-nowrap">
+                      ดูออเดอร์
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -442,7 +448,7 @@ function HistoryTab() {
                     แสดง {filtered.length} จาก {payments.length} รายการ
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-green-700">฿{total.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
-                  <td colSpan={3} />
+                  <td colSpan={4} />
                 </tr>
               </tfoot>
             )}
@@ -455,6 +461,15 @@ function HistoryTab() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={previewImg} alt="proof" className="max-w-sm max-h-[85vh] rounded-2xl shadow-2xl object-contain" onClick={(e) => e.stopPropagation()} />
         </div>
+      )}
+
+      {breakdownPayment && (
+        <BreakdownModal
+          userId={breakdownPayment.userId}
+          month={breakdownPayment.month}
+          user={breakdownPayment.user}
+          onClose={() => setBreakdownPayment(null)}
+        />
       )}
     </div>
   );
