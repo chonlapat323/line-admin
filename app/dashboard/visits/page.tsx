@@ -45,8 +45,13 @@ const PERIOD_OPTS: { value: PeriodFilter; label: string }[] = [
   ...PERIOD_OPTIONS,
 ];
 
-const SELECT_CLS =
-  "text-sm border border-gray-200 rounded-xl bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent text-gray-600 min-w-[110px]";
+function selectCls(active: boolean) {
+  return `text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-400 border-0 cursor-pointer font-medium transition-colors min-w-[110px] ${
+    active
+      ? "bg-green-500 text-white"
+      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+  }`;
+}
 
 function ResultBadge({ result }: { result?: string }) {
   if (!result) return null;
@@ -242,8 +247,8 @@ export default function VisitsPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 space-y-3">
-        {/* Period chips */}
+      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 space-y-2.5">
+        {/* Row 1: Period + custom date */}
         <div className="flex gap-2 flex-wrap items-center">
           {PERIOD_OPTS.map((opt) => (
             <button
@@ -251,7 +256,7 @@ export default function VisitsPage() {
               onClick={() => setPeriod(opt.value)}
               className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
                 period === opt.value
-                  ? "bg-green-500 text-white shadow-sm"
+                  ? "bg-green-500 text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -259,29 +264,32 @@ export default function VisitsPage() {
             </button>
           ))}
           {period === "custom" && (
-            <div className="flex gap-2 items-center">
+            <>
               <input
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-400"
+                className="text-sm bg-gray-100 rounded-xl px-3 py-1.5 border-0 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600"
               />
               <span className="text-gray-400 text-sm">—</span>
               <input
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-400"
+                className="text-sm bg-gray-100 rounded-xl px-3 py-1.5 border-0 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600"
               />
-            </div>
+            </>
           )}
         </div>
 
-        {/* Type filters + search */}
-        <div className="flex gap-2 flex-wrap">
+        {/* Divider */}
+        <div className="border-t border-gray-100" />
+
+        {/* Row 2: Search + dropdowns */}
+        <div className="flex gap-2 flex-wrap items-center">
           <div className="relative flex-1 min-w-[180px] max-w-xs">
             <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+              className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${search ? "text-green-500" : "text-gray-400"}`}
               fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
@@ -291,36 +299,38 @@ export default function VisitsPage() {
               placeholder="ค้นหาร้าน, จังหวัด, เซล..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+              className={`w-full pl-9 pr-4 py-1.5 text-sm rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-green-400 font-medium transition-colors ${
+                search ? "bg-green-500 text-white placeholder:text-green-200" : "bg-gray-100 text-gray-600 placeholder:text-gray-400"
+              }`}
             />
           </div>
 
-          <select value={provinceFilter} onChange={(e) => setProvinceFilter(e.target.value)} className={SELECT_CLS}>
+          <select value={provinceFilter} onChange={(e) => setProvinceFilter(e.target.value)} className={selectCls(!!provinceFilter)}>
             <option value="">ทุกจังหวัด</option>
             {provinces.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
 
-          <select value={resultFilter} onChange={(e) => setResultFilter(e.target.value)} className={SELECT_CLS}>
+          <select value={resultFilter} onChange={(e) => setResultFilter(e.target.value)} className={selectCls(!!resultFilter)}>
             <option value="">ทุกผล</option>
             <option value="buy">ซื้อ</option>
             <option value="no_buy">ไม่ซื้อ</option>
             <option value="not_found">ไม่พบ</option>
           </select>
 
-          <select value={tripFilter} onChange={(e) => setTripFilter(e.target.value)} className={SELECT_CLS}>
+          <select value={tripFilter} onChange={(e) => setTripFilter(e.target.value)} className={selectCls(!!tripFilter)}>
             <option value="">ทุกทริป</option>
             <option value="plan">ตามแผน</option>
             <option value="off_plan">นอกแผน</option>
           </select>
 
-          <select value={visitTypeFilter} onChange={(e) => setVisitTypeFilter(e.target.value)} className={SELECT_CLS}>
+          <select value={visitTypeFilter} onChange={(e) => setVisitTypeFilter(e.target.value)} className={selectCls(!!visitTypeFilter)}>
             <option value="">ทุกภารกิจ</option>
             <option value="tak">ทัก</option>
             <option value="dem">เดม</option>
             <option value="tel">โทร</option>
           </select>
 
-          <select value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)} className={SELECT_CLS}>
+          <select value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)} className={selectCls(!!customerFilter)}>
             <option value="">ทุกลูกค้า</option>
             <option value="new">ลูกค้าใหม่</option>
             <option value="existing">ลูกค้าเก่า</option>
