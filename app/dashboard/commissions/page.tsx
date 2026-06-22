@@ -244,35 +244,48 @@ function PayModal({ row, month, onClose, onDone }: {
 }
 
 // ─── History Tab ─────────────────────────────────────────────────────────────
+function stepMonth(month: string, delta: number) {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function HistoryTab() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
 
   // Filters
-  const [historyMonth, setHistoryMonth] = useState(""); // "" = ทุกเดือน
-  const [search, setSearch] = useState("");
-  const [slipFilter, setSlipFilter] = useState("all"); // all | has_slip | no_slip
+  const [historyMonth, setHistoryMonth] = useState(getCurrentMonth());
+  const [personFilter, setPersonFilter] = useState(""); // "" = ทั้งหมด
+  const [slipFilter, setSlipFilter] = useState("all");
+
+  const currentMonth = getCurrentMonth();
+  const isCurrentMonth = historyMonth === currentMonth;
 
   useEffect(() => {
+    setPersonFilter(""); // reset person filter on month change
     setLoading(true);
-    api.getCommissionPayments(historyMonth || undefined)
+    api.getCommissionPayments(historyMonth)
       .then(setPayments)
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [historyMonth]);
 
+  const persons = useMemo(() => {
+    const seen = new Map<string, string>();
+    payments.forEach((p) => { if (!seen.has(p.userId)) seen.set(p.userId, p.user.fullName); });
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [payments]);
+
   const filtered = useMemo(() => {
     return payments.filter((p) => {
+      if (personFilter && p.userId !== personFilter) return false;
       if (slipFilter === "has_slip" && !p.slipUrl) return false;
       if (slipFilter === "no_slip" && p.slipUrl) return false;
-      if (search.trim()) {
-        const q = search.trim().toLowerCase();
-        if (!p.user.fullName.toLowerCase().includes(q) && !p.user.email.toLowerCase().includes(q)) return false;
-      }
       return true;
     });
-  }, [payments, search, slipFilter]);
+  }, [payments, personFilter, slipFilter]);
 
   const total = filtered.reduce((s, p) => s + p.amount, 0);
 
@@ -280,25 +293,45 @@ function HistoryTab() {
     <div className="space-y-3">
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2.5">
-        {/* Row 1: Month picker */}
-        <div className="flex gap-2 flex-wrap items-center">
-          <button onClick={() => setHistoryMonth("")}
-            className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
-              historyMonth === "" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}>
-            ทุกเดือน
+        {/* Row 1: Month navigation */}
+        <div className="flex gap-2 items-center">
+          <button onClick={() => setHistoryMonth(stepMonth(historyMonth, -1))}
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 text-base font-bold transition-colors">
+            ‹
           </button>
           <input
             type="month"
             value={historyMonth}
+            max={currentMonth}
             onChange={(e) => setHistoryMonth(e.target.value)}
-            className={`px-3 py-1.5 text-sm rounded-xl font-medium border-0 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors ${
-              historyMonth ? "bg-green-500 text-white [color-scheme:dark]" : "bg-gray-100 text-gray-600"
-            }`}
+            className="px-3 py-1.5 text-sm rounded-xl font-semibold border-0 focus:outline-none focus:ring-2 focus:ring-green-400 bg-green-500 text-white [color-scheme:dark] transition-colors"
           />
+          <button onClick={() => setHistoryMonth(stepMonth(historyMonth, 1))}
+            disabled={isCurrentMonth}
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 text-base font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+            ›
+          </button>
         </div>
         <div className="border-t border-gray-100" />
-        {/* Row 2: Slip filter + search */}
+        {/* Row 2: Person + slip filter */}
+        <div className="flex gap-2 flex-wrap items-center">
+          <button onClick={() => setPersonFilter("")}
+            className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
+              personFilter === "" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}>
+            ทุกคน
+          </button>
+          {persons.map((p) => (
+            <button key={p.id} onClick={() => setPersonFilter(p.id)}
+              className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
+                personFilter === p.id ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}>
+              {p.name}
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-gray-100" />
+        {/* Row 3: Slip filter */}
         <div className="flex gap-2 flex-wrap items-center">
           {[
             { value: "all", label: "ทั้งหมด" },
@@ -312,23 +345,6 @@ function HistoryTab() {
               {opt.label}
             </button>
           ))}
-        </div>
-        <div className="border-t border-gray-100" />
-        <div className="flex gap-2 items-center">
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${search ? "text-green-200" : "text-gray-400"}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-            </svg>
-            <input type="text" placeholder="ค้นหาชื่อเซล..."
-              value={search} onChange={(e) => setSearch(e.target.value)}
-              className={`w-full pl-9 pr-4 py-1.5 text-sm rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-green-400 font-medium transition-colors ${
-                search ? "bg-green-500 text-white placeholder:text-green-200" : "bg-gray-100 text-gray-600 placeholder:text-gray-400"
-              }`} />
-          </div>
-          {search && (
-            <button onClick={() => setSearch("")} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 rounded-xl hover:bg-gray-100">ล้าง</button>
-          )}
         </div>
       </div>
 
@@ -354,7 +370,7 @@ function HistoryTab() {
                   <td colSpan={7} className="text-center py-16">
                     <p className="text-2xl mb-2">💸</p>
                     <p className="text-sm font-semibold text-gray-600">
-                      {payments.length === 0 ? (historyMonth ? `ยังไม่มีการบันทึกการจ่ายในเดือน ${historyMonth}` : "ยังไม่มีประวัติการจ่ายเลย") : "ไม่พบรายการที่ตรงกับ filter"}
+                      {payments.length === 0 ? `ยังไม่มีการบันทึกการจ่ายในเดือน ${historyMonth}` : "ไม่พบรายการที่ตรงกับ filter"}
                     </p>
                   </td>
                 </tr>
