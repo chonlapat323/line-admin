@@ -76,8 +76,10 @@ export const api = {
   getCommissionBreakdown: (userId: string, month: string) =>
     request(`/visits/commission-breakdown?userId=${userId}&month=${month}`),
 
-  getCommissionPayments: (month: string) =>
-    request(`/commission-payments?month=${month}`),
+  getCommissionPayments: (month?: string) => {
+    const qs = month ? `?month=${month}` : "";
+    return request(`/commission-payments${qs}`);
+  },
 
   createCommissionPayment: (formData: FormData) =>
     request('/commission-payments', { method: 'POST', body: formData, headers: {} }),

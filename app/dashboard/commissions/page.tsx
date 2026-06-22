@@ -244,22 +244,23 @@ function PayModal({ row, month, onClose, onDone }: {
 }
 
 // ─── History Tab ─────────────────────────────────────────────────────────────
-function HistoryTab({ month }: { month: string }) {
+function HistoryTab() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
 
   // Filters
+  const [historyMonth, setHistoryMonth] = useState(""); // "" = ทุกเดือน
   const [search, setSearch] = useState("");
   const [slipFilter, setSlipFilter] = useState("all"); // all | has_slip | no_slip
 
   useEffect(() => {
     setLoading(true);
-    api.getCommissionPayments(month)
+    api.getCommissionPayments(historyMonth || undefined)
       .then(setPayments)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [month]);
+  }, [historyMonth]);
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {
@@ -279,6 +280,25 @@ function HistoryTab({ month }: { month: string }) {
     <div className="space-y-3">
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2.5">
+        {/* Row 1: Month picker */}
+        <div className="flex gap-2 flex-wrap items-center">
+          <button onClick={() => setHistoryMonth("")}
+            className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
+              historyMonth === "" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}>
+            ทุกเดือน
+          </button>
+          <input
+            type="month"
+            value={historyMonth}
+            onChange={(e) => setHistoryMonth(e.target.value)}
+            className={`px-3 py-1.5 text-sm rounded-xl font-medium border-0 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors ${
+              historyMonth ? "bg-green-500 text-white [color-scheme:dark]" : "bg-gray-100 text-gray-600"
+            }`}
+          />
+        </div>
+        <div className="border-t border-gray-100" />
+        {/* Row 2: Slip filter + search */}
         <div className="flex gap-2 flex-wrap items-center">
           {[
             { value: "all", label: "ทั้งหมด" },
@@ -334,7 +354,7 @@ function HistoryTab({ month }: { month: string }) {
                   <td colSpan={7} className="text-center py-16">
                     <p className="text-2xl mb-2">💸</p>
                     <p className="text-sm font-semibold text-gray-600">
-                      {payments.length === 0 ? "ยังไม่มีการบันทึกการจ่ายในเดือนนี้" : "ไม่พบรายการที่ตรงกับ filter"}
+                      {payments.length === 0 ? (historyMonth ? `ยังไม่มีการบันทึกการจ่ายในเดือน ${historyMonth}` : "ยังไม่มีประวัติการจ่ายเลย") : "ไม่พบรายการที่ตรงกับ filter"}
                     </p>
                   </td>
                 </tr>
@@ -500,7 +520,7 @@ export default function CommissionsPage() {
       </div>
 
       {/* Tab: History */}
-      {activeTab === "history" && <HistoryTab month={month} />}
+      {activeTab === "history" && <HistoryTab />}
 
       {/* Tab: Calc */}
       {activeTab === "calc" && (
