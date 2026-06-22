@@ -259,12 +259,14 @@ function HistoryTab() {
   const [historyMonth, setHistoryMonth] = useState(getCurrentMonth());
   const [personFilter, setPersonFilter] = useState(""); // "" = ทั้งหมด
   const [slipFilter, setSlipFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
   const currentMonth = getCurrentMonth();
   const isCurrentMonth = historyMonth === currentMonth;
 
   useEffect(() => {
-    setPersonFilter(""); // reset person filter on month change
+    setPersonFilter("");
+    setSearch("");
     setLoading(true);
     api.getCommissionPayments(historyMonth)
       .then(setPayments)
@@ -283,9 +285,13 @@ function HistoryTab() {
       if (personFilter && p.userId !== personFilter) return false;
       if (slipFilter === "has_slip" && !p.slipUrl) return false;
       if (slipFilter === "no_slip" && p.slipUrl) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        if (!p.user.fullName.toLowerCase().includes(q) && !p.user.email.toLowerCase().includes(q)) return false;
+      }
       return true;
     });
-  }, [payments, personFilter, slipFilter]);
+  }, [payments, personFilter, slipFilter, search]);
 
   const total = filtered.reduce((s, p) => s + p.amount, 0);
 
@@ -331,7 +337,7 @@ function HistoryTab() {
           ))}
         </div>
         <div className="border-t border-gray-100" />
-        {/* Row 3: Slip filter */}
+        {/* Row 3: Slip filter + search */}
         <div className="flex gap-2 flex-wrap items-center">
           {[
             { value: "all", label: "ทั้งหมด" },
@@ -345,6 +351,20 @@ function HistoryTab() {
               {opt.label}
             </button>
           ))}
+          <div className="relative min-w-[180px]">
+            <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${search ? "text-green-200" : "text-gray-400"}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+            </svg>
+            <input type="text" placeholder="ค้นหาชื่อ..."
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              className={`w-full pl-9 pr-4 py-1.5 text-sm rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-green-400 font-medium transition-colors ${
+                search ? "bg-green-500 text-white placeholder:text-green-200" : "bg-gray-100 text-gray-600 placeholder:text-gray-400"
+              }`} />
+          </div>
+          {search && (
+            <button onClick={() => setSearch("")} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 rounded-xl hover:bg-gray-100">ล้าง</button>
+          )}
         </div>
       </div>
 
