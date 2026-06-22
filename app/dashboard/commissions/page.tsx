@@ -10,6 +10,7 @@ interface UserSummary {
   totalAmount: number;
   reachedThreshold: boolean;
   commission: number;
+  pendingCount: number;
 }
 interface CommissionData {
   month: string;
@@ -674,6 +675,13 @@ export default function CommissionsPage() {
                               <div className="flex flex-col items-center gap-0.5">
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">✓ จ่ายแล้ว</span>
                                 {paidRecord && <span className="text-xs text-gray-400">{new Date(paidRecord.paidAt).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}</span>}
+                              </div>
+                            ) : row.pendingCount > 0 ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                  ⏳ รอยืนยัน {row.pendingCount} รายการ
+                                </span>
+                                <span className="text-xs text-gray-400">ยืนยันครบก่อนจ่าย</span>
                               </div>
                             ) : (
                               <button onClick={() => setPayingRow(row)}
