@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 
 interface VisitRecord {
@@ -16,13 +16,27 @@ interface VisitRecord {
   user?: { fullName: string; email: string };
 }
 
-function SlipImage({ url }: { url: string }) {
+const STATUS_LABEL: Record<string, string> = {
+  pending_approval: "รออนุมัติ",
+  verified: "ยืนยัน QR",
+  approved: "อนุมัติแล้ว",
+  rejected: "ปฏิเสธ",
+};
+
+const STATUS_CLASS: Record<string, string> = {
+  pending_approval: "bg-amber-50 text-amber-700 border-amber-200",
+  verified: "bg-blue-50 text-blue-700 border-blue-200",
+  approved: "bg-green-50 text-green-700 border-green-200",
+  rejected: "bg-red-50 text-red-600 border-red-200",
+};
+
+function SlipThumb({ url }: { url: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={url} alt="slip" onClick={() => setOpen(true)}
-        className="w-20 h-20 object-cover rounded-xl border border-gray-100 cursor-pointer hover:opacity-90 flex-shrink-0" />
+        className="w-10 h-10 object-cover rounded-lg border border-gray-100 cursor-pointer hover:opacity-80 flex-shrink-0" />
       {open && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setOpen(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -56,14 +70,12 @@ function ApproveModal({ visit, onClose, onDone }: {
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-bold text-gray-800 mb-1">อนุมัติสลิป</h3>
         <p className="text-xs text-gray-400 mb-4">{visit.shopName} · {visit.user?.fullName}</p>
-
         {visit.slipUrl && (
           <div className="flex justify-center mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={visit.slipUrl} alt="slip" className="max-h-48 rounded-xl border border-gray-100 object-contain" />
+            <img src={visit.slipUrl} alt="slip" className="max-h-52 rounded-xl border border-gray-100 object-contain" />
           </div>
         )}
-
         <div className="mb-4">
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">ยอดเงิน (บาท)</label>
           <input type="number" value={amount} onChange={(e) => { setAmount(e.target.value); setError(""); }}
@@ -71,7 +83,6 @@ function ApproveModal({ visit, onClose, onDone }: {
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
         </div>
-
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">
             ยกเลิก
@@ -86,122 +97,224 @@ function ApproveModal({ visit, onClose, onDone }: {
   );
 }
 
+const PAGE_SIZE = 20;
+
 export default function ApprovalsPage() {
   const [visits, setVisits] = useState<VisitRecord[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [slipStatusFilter, setSlipStatusFilter] = useState("pending_approval");
+
   const [approvingVisit, setApprovingVisit] = useState<VisitRecord | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const load = useCallback((p = 1) => {
     setLoading(true);
-    api.getVisits({ slipStatus: "pending_approval", limit: 100 })
-      .then((res) => setVisits(res?.data ?? []))
+    api.getVisits({
+      page: p, limit: PAGE_SIZE,
+      search: search.trim() || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      slipStatus: slipStatusFilter || undefined,
+      result: "buy",
+    })
+      .then((res) => { setVisits(res?.data ?? []); setTotal(res?.total ?? 0); })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [search, dateFrom, dateTo, slipStatusFilter]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    setPage(1);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => load(1), 300);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [search, dateFrom, dateTo, slipStatusFilter]);
+
+  useEffect(() => { load(page); }, [page]);
 
   async function handleReject(id: string) {
     setRejectingId(id);
     try {
       await api.approveVisit(id, "reject");
-      load();
+      load(page);
     } catch { alert("เกิดข้อผิดพลาด"); }
     finally { setRejectingId(null); }
   }
 
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pendingCount = slipStatusFilter === "pending_approval" ? total : visits.filter(v => v.slipStatus === "pending_approval").length;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-gray-800">รออนุมัติสลิป</h2>
-        <p className="text-sm text-gray-400 mt-0.5">
-          {loading ? "กำลังโหลด..." : `${visits.length} รายการรอการตรวจสอบ`}
-        </p>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">จัดการสลิปการชำระเงิน</h2>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {loading ? "กำลังโหลด..." : `${total} รายการ`}
+            {slipStatusFilter === "pending_approval" && total > 0 && (
+              <span className="ml-2 text-amber-600 font-semibold">· รออนุมัติ {total} รายการ</span>
+            )}
+          </p>
+        </div>
       </div>
 
-      {loading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse">
-              <div className="flex gap-4">
-                <div className="w-20 h-20 rounded-xl bg-gray-200 flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-32 bg-gray-200 rounded" />
-                  <div className="h-3 w-24 bg-gray-200 rounded" />
-                  <div className="h-3 w-20 bg-gray-200 rounded" />
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* Filters */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input
+            type="text" placeholder="ค้นหาร้านค้า / ชื่อเซล..."
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none"
+          />
+          <select value={slipStatusFilter} onChange={(e) => setSlipStatusFilter(e.target.value)}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none bg-white">
+            <option value="pending_approval">รออนุมัติ</option>
+            <option value="approved">อนุมัติแล้ว</option>
+            <option value="rejected">ปฏิเสธ</option>
+            <option value="verified">ยืนยัน QR</option>
+            <option value="">ทั้งหมด</option>
+          </select>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+            placeholder="วันที่เริ่ม"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+            placeholder="วันที่สิ้นสุด"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
         </div>
-      )}
+        {(search || dateFrom || dateTo || slipStatusFilter !== "pending_approval") && (
+          <button onClick={() => { setSearch(""); setDateFrom(""); setDateTo(""); setSlipStatusFilter("pending_approval"); }}
+            className="mt-2 text-xs text-gray-400 hover:text-gray-600 underline">
+            ล้าง filter
+          </button>
+        )}
+      </div>
 
-      {!loading && visits.length === 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-          <p className="text-2xl mb-2">✅</p>
-          <p className="text-sm font-semibold text-gray-600">ไม่มีรายการรอการอนุมัติ</p>
-          <p className="text-xs text-gray-400 mt-1">ทุกสลิปได้รับการตรวจสอบแล้ว</p>
-        </div>
-      )}
-
-      {!loading && visits.length > 0 && (
-        <div className="space-y-3">
-          {visits.map((v) => (
-            <div key={v.id} className="bg-white rounded-2xl border border-amber-100 shadow-sm p-5">
-              <div className="flex items-start gap-4">
-                {v.slipUrl ? (
-                  <SlipImage url={v.slipUrl} />
-                ) : (
-                  <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs text-gray-400">ไม่มีรูป</span>
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2 flex-wrap">
-                    <div>
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-8">#</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-12">สลิป</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ร้านค้า</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">เซล</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">จังหวัด</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ยอด (บาท)</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">วันที่</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">สถานะ</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr>
+                  <td colSpan={9} className="text-center py-12 text-gray-400 text-sm">กำลังโหลด...</td>
+                </tr>
+              )}
+              {!loading && visits.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="text-center py-16">
+                    <p className="text-2xl mb-2">✅</p>
+                    <p className="text-sm font-semibold text-gray-600">ไม่มีรายการ</p>
+                  </td>
+                </tr>
+              )}
+              {!loading && visits.map((v, i) => {
+                const isPending = v.slipStatus === "pending_approval";
+                const statusKey = v.slipStatus ?? "";
+                return (
+                  <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <td className="px-4 py-3 text-xs text-gray-400">{(page - 1) * PAGE_SIZE + i + 1}</td>
+                    <td className="px-4 py-3">
+                      {v.slipUrl
+                        ? <SlipThumb url={v.slipUrl} />
+                        : <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-400">—</div>
+                      }
+                    </td>
+                    <td className="px-4 py-3">
                       <p className="font-semibold text-gray-800 text-sm">{v.shopName}</p>
-                      <p className="text-xs text-gray-400">{v.district ? `${v.province} · ${v.district}` : v.province}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">เซล: {v.user?.fullName || "—"}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-amber-600">
-                        ฿{(v.orderAmount ?? 0).toLocaleString("th-TH")}
-                      </p>
-                      <p className="text-xs text-gray-400">ยอดที่เซลกรอก</p>
-                    </div>
-                  </div>
-
-                  {v.transRef && (
-                    <p className="text-xs text-gray-400 mt-1 font-mono">Ref: {v.transRef}</p>
-                  )}
-                  <p className="text-xs text-gray-300 mt-1">
-                    {new Date(v.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                  </p>
-
-                  <div className="flex gap-2 mt-3">
-                    <button onClick={() => setApprovingVisit(v)}
-                      className="flex-1 py-2 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors">
-                      อนุมัติ
-                    </button>
-                    <button onClick={() => handleReject(v.id)} disabled={rejectingId === v.id}
-                      className="flex-1 py-2 text-xs font-semibold border border-red-200 text-red-500 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-40">
-                      {rejectingId === v.id ? "กำลังปฏิเสธ..." : "ปฏิเสธ"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+                      {v.transRef && <p className="text-xs text-gray-400 font-mono mt-0.5">Ref: {v.transRef}</p>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-gray-700">{v.user?.fullName || "—"}</p>
+                      <p className="text-xs text-gray-400">{v.user?.email || ""}</p>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {v.district ? `${v.province} · ${v.district}` : v.province}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="font-semibold text-gray-800">
+                        {v.orderAmount != null ? `฿${v.orderAmount.toLocaleString("th-TH")}` : "—"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      {new Date(v.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+                      <br />
+                      {new Date(v.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_CLASS[statusKey] ?? "bg-gray-50 text-gray-500 border-gray-200"}`}>
+                        {STATUS_LABEL[statusKey] ?? statusKey}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {isPending && (
+                        <div className="flex gap-1.5">
+                          <button onClick={() => setApprovingVisit(v)}
+                            className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors whitespace-nowrap">
+                            อนุมัติ
+                          </button>
+                          <button onClick={() => handleReject(v.id)} disabled={rejectingId === v.id}
+                            className="px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 whitespace-nowrap">
+                            {rejectingId === v.id ? "..." : "ปฏิเสธ"}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+            <p className="text-xs text-gray-400">
+              แสดง {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} จาก {total} รายการ
+            </p>
+            <div className="flex gap-1.5">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+                ← ก่อนหน้า
+              </button>
+              <span className="px-3 py-1.5 text-xs text-gray-600 font-semibold">
+                {page} / {totalPages}
+              </span>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+                ถัดไป →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {approvingVisit && (
         <ApproveModal
           visit={approvingVisit}
           onClose={() => setApprovingVisit(null)}
-          onDone={() => { setApprovingVisit(null); load(); }}
+          onDone={() => { setApprovingVisit(null); load(page); }}
         />
       )}
     </div>
