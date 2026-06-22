@@ -249,6 +249,10 @@ function HistoryTab({ month }: { month: string }) {
   const [loading, setLoading] = useState(true);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
 
+  // Filters
+  const [search, setSearch] = useState("");
+  const [slipFilter, setSlipFilter] = useState("all"); // all | has_slip | no_slip
+
   useEffect(() => {
     setLoading(true);
     api.getCommissionPayments(month)
@@ -257,75 +261,129 @@ function HistoryTab({ month }: { month: string }) {
       .finally(() => setLoading(false));
   }, [month]);
 
-  const total = payments.reduce((s, p) => s + p.amount, 0);
+  const filtered = useMemo(() => {
+    return payments.filter((p) => {
+      if (slipFilter === "has_slip" && !p.slipUrl) return false;
+      if (slipFilter === "no_slip" && p.slipUrl) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        if (!p.user.fullName.toLowerCase().includes(q) && !p.user.email.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [payments, search, slipFilter]);
+
+  const total = filtered.reduce((s, p) => s + p.amount, 0);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">สลิปโอน</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">เซล</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ยอดที่จ่าย</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">หมายเหตุ</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">จ่ายโดย</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">วันที่จ่าย</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && <tr><td colSpan={7} className="text-center py-12 text-gray-400 text-sm">กำลังโหลด...</td></tr>}
-            {!loading && payments.length === 0 && (
-              <tr>
-                <td colSpan={7} className="text-center py-16">
-                  <p className="text-2xl mb-2">💸</p>
-                  <p className="text-sm font-semibold text-gray-600">ยังไม่มีการบันทึกการจ่ายในเดือนนี้</p>
-                </td>
-              </tr>
-            )}
-            {!loading && payments.map((p) => (
-              <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                <td className="px-4 py-3">
-                  {p.slipUrl ? (
-                    <button onClick={() => setPreviewImg(p.slipUrl!)} className="focus:outline-none">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.slipUrl} alt="proof" className="w-10 h-10 object-cover rounded-lg border border-gray-100 hover:opacity-80" />
-                    </button>
-                  ) : <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-400">—</div>}
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-gray-800">{p.user.fullName}</p>
-                  <p className="text-xs text-gray-400">{p.user.email}</p>
-                </td>
-                <td className="px-4 py-3">
-                  {p.user.bankName ? (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">{p.user.bankName}</p>
-                      <p className="text-xs text-gray-500 font-mono">{p.user.bankAccount}</p>
-                    </div>
-                  ) : <span className="text-xs text-gray-300">—</span>}
-                </td>
-                <td className="px-4 py-3 text-right font-bold text-green-700">฿{p.amount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
-                <td className="px-4 py-3 text-sm text-gray-500">{p.note || "—"}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{p.admin.fullName}</td>
-                <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                  {new Date(p.paidAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
-                  <br />{new Date(p.paidAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          {!loading && payments.length > 0 && (
-            <tfoot>
-              <tr className="border-t-2 border-gray-200 bg-gray-50">
-                <td colSpan={3} className="px-4 py-3 text-xs font-semibold text-gray-500">{payments.length} รายการ</td>
-                <td className="px-4 py-3 text-right font-bold text-green-700">฿{total.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
-                <td colSpan={3} />
-              </tr>
-            </tfoot>
+    <div className="space-y-3">
+      {/* Filters */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2.5">
+        <div className="flex gap-2 flex-wrap items-center">
+          {[
+            { value: "all", label: "ทั้งหมด" },
+            { value: "has_slip", label: "มีสลิปโอน" },
+            { value: "no_slip", label: "ไม่มีสลิป" },
+          ].map((opt) => (
+            <button key={opt.value} onClick={() => setSlipFilter(opt.value)}
+              className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
+                slipFilter === opt.value ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-gray-100" />
+        <div className="flex gap-2 items-center">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${search ? "text-green-200" : "text-gray-400"}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+            </svg>
+            <input type="text" placeholder="ค้นหาชื่อเซล..."
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              className={`w-full pl-9 pr-4 py-1.5 text-sm rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-green-400 font-medium transition-colors ${
+                search ? "bg-green-500 text-white placeholder:text-green-200" : "bg-gray-100 text-gray-600 placeholder:text-gray-400"
+              }`} />
+          </div>
+          {search && (
+            <button onClick={() => setSearch("")} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 rounded-xl hover:bg-gray-100">ล้าง</button>
           )}
-        </table>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">สลิปโอน</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">เซล</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ยอดที่จ่าย</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">หมายเหตุ</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">จ่ายโดย</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">วันที่จ่าย</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && <tr><td colSpan={7} className="text-center py-12 text-gray-400 text-sm">กำลังโหลด...</td></tr>}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-16">
+                    <p className="text-2xl mb-2">💸</p>
+                    <p className="text-sm font-semibold text-gray-600">
+                      {payments.length === 0 ? "ยังไม่มีการบันทึกการจ่ายในเดือนนี้" : "ไม่พบรายการที่ตรงกับ filter"}
+                    </p>
+                  </td>
+                </tr>
+              )}
+              {!loading && filtered.map((p) => (
+                <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  <td className="px-4 py-3">
+                    {p.slipUrl ? (
+                      <button onClick={() => setPreviewImg(p.slipUrl!)} className="focus:outline-none">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.slipUrl} alt="proof" className="w-10 h-10 object-cover rounded-lg border border-gray-100 hover:opacity-80" />
+                      </button>
+                    ) : <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-400">—</div>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-gray-800">{p.user.fullName}</p>
+                    <p className="text-xs text-gray-400">{p.user.email}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    {p.user.bankName ? (
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">{p.user.bankName}</p>
+                        <p className="text-xs text-gray-500 font-mono">{p.user.bankAccount}</p>
+                      </div>
+                    ) : <span className="text-xs text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold text-green-700">฿{p.amount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{p.note || "—"}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{p.admin.fullName}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                    {new Date(p.paidAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+                    <br />{new Date(p.paidAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {!loading && filtered.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-gray-200 bg-gray-50">
+                  <td colSpan={3} className="px-4 py-3 text-xs font-semibold text-gray-500">
+                    แสดง {filtered.length} จาก {payments.length} รายการ
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold text-green-700">฿{total.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                  <td colSpan={3} />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
       </div>
 
       {previewImg && (
