@@ -8,6 +8,8 @@ interface User {
   fullName: string;
   email: string;
   role: string;
+  bankName: string | null;
+  bankAccount: string | null;
   createdAt: string;
 }
 
@@ -70,7 +72,7 @@ export default function UsersPage() {
 
   function openEdit(u: User) {
     setEditTarget(u);
-    setEditForm({ fullName: u.fullName, email: u.email, role: u.role, password: "", bankName: (u as any).bankName ?? "", bankAccount: (u as any).bankAccount ?? "" });
+    setEditForm({ fullName: u.fullName, email: u.email, role: u.role, password: "", bankName: u.bankName ?? "", bankAccount: u.bankAccount ?? "" });
   }
 
   async function handleEdit(e: React.FormEvent) {
@@ -155,7 +157,8 @@ export default function UsersPage() {
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">ชื่อ-นามสกุล</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">อีเมล</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">สิทธิ์</th>
-              <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">วันที่สมัคร</th>
+              <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">บัญชีธนาคาร</th>
+              <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden xl:table-cell">วันที่สมัคร</th>
               <th className="px-5 py-3.5"></th>
             </tr>
           </thead>
@@ -171,7 +174,8 @@ export default function UsersPage() {
                   </td>
                   <td className="px-5 py-4"><div className="h-3.5 w-40 bg-gray-200 animate-pulse rounded" /></td>
                   <td className="px-5 py-4"><div className="h-5 w-14 bg-gray-200 animate-pulse rounded-full" /></td>
-                  <td className="px-5 py-4 hidden lg:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
+                  <td className="px-5 py-4 hidden lg:table-cell"><div className="h-3.5 w-28 bg-gray-200 animate-pulse rounded" /></td>
+                  <td className="px-5 py-4 hidden xl:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
                   <td className="px-5 py-4"></td>
                 </tr>
               ))
@@ -209,7 +213,17 @@ export default function UsersPage() {
                     {u.role === "admin" ? "Admin" : "User"}
                   </span>
                 </td>
-                <td className="px-5 py-4 text-gray-400 text-xs hidden lg:table-cell">
+                <td className="px-5 py-4 hidden lg:table-cell">
+                  {u.bankName ? (
+                    <div>
+                      <div className="text-xs font-medium text-gray-700">{u.bankName}</div>
+                      <div className="text-xs font-mono text-gray-400 mt-0.5">{u.bankAccount}</div>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-300">—</span>
+                  )}
+                </td>
+                <td className="px-5 py-4 text-gray-400 text-xs hidden xl:table-cell">
                   {new Date(u.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
                 </td>
                 <td className="px-5 py-4 text-right">
@@ -362,8 +376,24 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">ธนาคาร</label>
-                  <input placeholder="เช่น กสิกรไทย, SCB..." value={editForm.bankName} onChange={(e) => setEditForm({ ...editForm, bankName: e.target.value })}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:border-transparent focus:outline-none" />
+                  <select value={editForm.bankName} onChange={(e) => setEditForm({ ...editForm, bankName: e.target.value })}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:border-transparent focus:outline-none text-gray-700">
+                    <option value="">— เลือกธนาคาร —</option>
+                    <option value="กรุงเทพ">กรุงเทพ (BBL)</option>
+                    <option value="กสิกรไทย">กสิกรไทย (KBANK)</option>
+                    <option value="กรุงไทย">กรุงไทย (KTB)</option>
+                    <option value="ไทยพาณิชย์">ไทยพาณิชย์ (SCB)</option>
+                    <option value="กรุงศรีอยุธยา">กรุงศรีอยุธยา (BAY)</option>
+                    <option value="ทหารไทยธนชาต">ทหารไทยธนชาต (TTB)</option>
+                    <option value="ออมสิน">ออมสิน (GSB)</option>
+                    <option value="ธ.ก.ส.">ธ.ก.ส. (BAAC)</option>
+                    <option value="ซีไอเอ็มบี">ซีไอเอ็มบี (CIMB)</option>
+                    <option value="ยูโอบี">ยูโอบี (UOB)</option>
+                    <option value="ทิสโก้">ทิสโก้ (TISCO)</option>
+                    <option value="เกียรตินาคินภัทร">เกียรตินาคินภัทร (KKP)</option>
+                    <option value="แลนด์แอนด์เฮ้าส์">แลนด์แอนด์เฮ้าส์ (LH Bank)</option>
+                    <option value="ไทยเครดิต">ไทยเครดิต (Thai Credit)</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">เลขบัญชี</label>
