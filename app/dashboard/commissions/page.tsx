@@ -506,7 +506,7 @@ export default function CommissionsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-800">ค่าคอมมิชชันรายเดือน</h2>
-          <p className="text-sm text-gray-400 mt-0.5">คำนวณจากยอด verified + approved เท่านั้น</p>
+          <p className="text-sm text-gray-400 mt-0.5">คำนวณจากยอด verified + approved + legacy (ไม่รวม pending / rejected)</p>
         </div>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
           className="bg-gray-100 rounded-xl px-3 py-1.5 text-sm border-0 focus:ring-2 focus:ring-green-400 focus:outline-none text-gray-600 font-medium" />
