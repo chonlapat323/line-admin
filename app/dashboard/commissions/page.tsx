@@ -37,7 +37,7 @@ const STATUS_OPTS = [
   { value: "reached", label: "ต้องจ่าย" },
   { value: "not_reached", label: "ไม่ถึงเป้า" },
 ];
-const SLIP_STATUS_LABEL: Record<string, string> = { verified: "QR ✓", approved: "อนุมัติแล้ว" };
+const SLIP_STATUS_LABEL: Record<string, string> = { verified: "QR ✓", approved: "อนุมัติแล้ว", "": "ข้อมูลเก่า" };
 
 // ─── Breakdown Modal ─────────────────────────────────────────────────────────
 function BreakdownModal({ userId, month, user, onClose }: {
@@ -65,7 +65,7 @@ function BreakdownModal({ userId, month, user, onClose }: {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <h3 className="font-bold text-gray-800">รายการออเดอร์ — {user.fullName}</h3>
-            <p className="text-xs text-gray-400 mt-0.5">เดือน {month} · เฉพาะที่ verified/approved</p>
+            <p className="text-xs text-gray-400 mt-0.5">เดือน {month} · รายการที่นับเป็นค่าคอม</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
         </div>
@@ -106,8 +106,12 @@ function BreakdownModal({ userId, month, user, onClose }: {
                       <p className="text-xs text-gray-400">{v.district ? `${v.province} · ${v.district}` : v.province}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${v.slipStatus === "verified" ? "bg-blue-50 text-blue-700" : "bg-green-50 text-green-700"}`}>
-                        {SLIP_STATUS_LABEL[v.slipStatus] ?? v.slipStatus}
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        v.slipStatus === "verified" ? "bg-blue-50 text-blue-700"
+                        : v.slipStatus === "approved" ? "bg-green-50 text-green-700"
+                        : "bg-gray-100 text-gray-500"
+                      }`}>
+                        {SLIP_STATUS_LABEL[v.slipStatus ?? ""] ?? v.slipStatus}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-400 font-mono">{v.transRef || "—"}</td>
