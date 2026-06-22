@@ -18,21 +18,26 @@ export default function SettingsPage() {
   const [editEasyslip, setEditEasyslip] = useState(false);
   const [slipLoading, setSlipLoading] = useState(false);
 
+  const [commissionRate, setCommissionRate] = useState("");
+  const [commissionThreshold, setCommissionThreshold] = useState("");
+  const [commissionLoading, setCommissionLoading] = useState(false);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     Promise.all([
       fetch(`${API_URL}/settings`).then((r) => r.json()),
-      fetch(`${API_URL}/settings/slip`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
+      fetch(`${API_URL}/settings/slip`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+      fetch(`${API_URL}/settings/commission`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
     ])
-      .then(([line, slip]) => {
+      .then(([line, slip, commission]) => {
         if (line.lineBotId) setLineBotId(line.lineBotId);
         setSlipProvider(slip.provider || "slip2go");
         setHasSlip2GoSecret(slip.hasSlip2GoSecret || false);
         setHasEasySlipSecret(slip.hasEasySlipSecret || false);
+        setCommissionRate(commission.rate > 0 ? String(commission.rate) : "");
+        setCommissionThreshold(commission.threshold > 0 ? String(commission.threshold) : "");
       })
       .catch(() => toast("โหลดการตั้งค่าล้มเหลว", "error"))
       .finally(() => setInitialLoading(false));
@@ -74,6 +79,20 @@ export default function SettingsPage() {
     } finally {
       setSlipLoading(false);
     }
+  }
+
+  async function handleSaveCommission(e: React.FormEvent) {
+    e.preventDefault();
+    const rate = parseFloat(commissionRate);
+    const threshold = parseFloat(commissionThreshold);
+    if (isNaN(rate) || rate < 0 || rate > 100) { toast("กรุณากรอก % ที่ถูกต้อง (0–100)", "error"); return; }
+    if (isNaN(threshold) || threshold < 0) { toast("กรุณากรอกยอดขั้นต่ำที่ถูกต้อง", "error"); return; }
+    setCommissionLoading(true);
+    try {
+      await api.updateCommissionSettings({ rate, threshold });
+      toast("บันทึก Commission Settings สำเร็จ", "success");
+    } catch { toast("บันทึกล้มเหลว", "error"); }
+    finally { setCommissionLoading(false); }
   }
 
   return (
@@ -192,6 +211,44 @@ export default function SettingsPage() {
           <button type="submit" disabled={slipLoading || initialLoading}
             className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
             {slipLoading ? "กำลังบันทึก..." : "บันทึก Slip Settings"}
+          </button>
+        </form>
+      </div>
+      {/* Commission */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <span className="w-6 h-6 rounded-lg bg-yellow-50 flex items-center justify-center text-xs">💰</span>
+          ค่าคอมมิชชัน
+        </h3>
+        <form onSubmit={handleSaveCommission} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">อัตราค่าคอม (%)</label>
+            <p className="text-xs text-gray-400 mb-2">เปอร์เซ็นต์ของยอดขายรวมที่เซลจะได้รับ</p>
+            <div className="relative">
+              <input type="number" value={commissionRate} onChange={(e) => setCommissionRate(e.target.value)}
+                placeholder="เช่น 5" min="0" max="100" step="0.01"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none pr-10" />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">ยอดขั้นต่ำ (บาท)</label>
+            <p className="text-xs text-gray-400 mb-2">ยอดขายรวมต่อเดือนที่ต้องถึงก่อนจึงจะได้ค่าคอม</p>
+            <div className="relative">
+              <input type="number" value={commissionThreshold} onChange={(e) => setCommissionThreshold(e.target.value)}
+                placeholder="เช่น 50000" min="0" step="1"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none pr-14" />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">บาท</span>
+            </div>
+          </div>
+          {commissionRate && commissionThreshold && (
+            <div className="p-3 bg-yellow-50 rounded-xl text-xs text-yellow-800">
+              ตัวอย่าง: ถ้ายอดขาย ฿{Number(commissionThreshold).toLocaleString("th-TH")} ขึ้นไป จะได้ค่าคอม {commissionRate}% = ฿{(Number(commissionThreshold) * Number(commissionRate) / 100).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+            </div>
+          )}
+          <button type="submit" disabled={commissionLoading || initialLoading}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
+            {commissionLoading ? "กำลังบันทึก..." : "บันทึก Commission Settings"}
           </button>
         </form>
       </div>

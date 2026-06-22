@@ -65,4 +65,11 @@ export const api = {
   getSlipSettings: () => request("/settings/slip"),
   updateSlipSettings: (data: { provider?: string; slip2goSecret?: string; easyslipSecret?: string }) =>
     request("/settings/slip", { method: "PATCH", body: JSON.stringify(data) }),
+
+  getCommissionSettings: () => request("/settings/commission"),
+  updateCommissionSettings: (data: { rate?: number; threshold?: number }) =>
+    request("/settings/commission", { method: "PATCH", body: JSON.stringify(data) }),
+
+  getCommissionSummary: (month: string) =>
+    request(`/visits/commission-summary?month=${month}`),
 };
