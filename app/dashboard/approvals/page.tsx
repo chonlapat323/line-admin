@@ -167,34 +167,58 @@ export default function ApprovalsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <input
-            type="text" placeholder="ค้นหาร้านค้า / ชื่อเซล..."
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none"
-          />
-          <select value={slipStatusFilter} onChange={(e) => setSlipStatusFilter(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none bg-white">
-            <option value="pending_approval">รออนุมัติ</option>
-            <option value="approved">อนุมัติแล้ว</option>
-            <option value="rejected">ปฏิเสธ</option>
-            <option value="verified">ยืนยัน QR</option>
-            <option value="">ทั้งหมด</option>
-          </select>
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-            placeholder="วันที่เริ่ม"
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-            placeholder="วันที่สิ้นสุด"
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2.5">
+        {/* Row 1: Status chips */}
+        <div className="flex gap-2 flex-wrap items-center">
+          {[
+            { value: "pending_approval", label: "รออนุมัติ" },
+            { value: "verified", label: "ยืนยัน QR" },
+            { value: "approved", label: "อนุมัติแล้ว" },
+            { value: "rejected", label: "ปฏิเสธ" },
+            { value: "", label: "ทั้งหมด" },
+          ].map((opt) => (
+            <button key={opt.value} onClick={() => setSlipStatusFilter(opt.value)}
+              className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
+                slipStatusFilter === opt.value
+                  ? "bg-green-500 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}>
+              {opt.label}
+            </button>
+          ))}
         </div>
-        {(search || dateFrom || dateTo || slipStatusFilter !== "pending_approval") && (
-          <button onClick={() => { setSearch(""); setDateFrom(""); setDateTo(""); setSlipStatusFilter("pending_approval"); }}
-            className="mt-2 text-xs text-gray-400 hover:text-gray-600 underline">
-            ล้าง filter
-          </button>
-        )}
+
+        <div className="border-t border-gray-100" />
+
+        {/* Row 2: Search + date range */}
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${search ? "text-green-200" : "text-gray-400"}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+            </svg>
+            <input type="text" placeholder="ค้นหาร้านค้า / ชื่อเซล..."
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              className={`w-full pl-9 pr-4 py-1.5 text-sm rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-green-400 font-medium transition-colors ${
+                search ? "bg-green-500 text-white placeholder:text-green-200" : "bg-gray-100 text-gray-600 placeholder:text-gray-400"
+              }`} />
+          </div>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+            className={`text-sm rounded-xl px-3 py-1.5 border-0 focus:outline-none focus:ring-2 focus:ring-green-400 font-medium transition-colors ${
+              dateFrom ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600"
+            }`} />
+          <span className="text-gray-400 text-sm">—</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+            className={`text-sm rounded-xl px-3 py-1.5 border-0 focus:outline-none focus:ring-2 focus:ring-green-400 font-medium transition-colors ${
+              dateTo ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600"
+            }`} />
+          {(search || dateFrom || dateTo) && (
+            <button onClick={() => { setSearch(""); setDateFrom(""); setDateTo(""); }}
+              className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 rounded-xl hover:bg-gray-100 transition-colors">
+              ล้าง
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
