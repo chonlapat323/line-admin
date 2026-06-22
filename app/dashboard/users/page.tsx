@@ -27,7 +27,7 @@ export default function UsersPage() {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [editTarget, setEditTarget] = useState<User | null>(null);
   const [form, setForm] = useState({ email: "", password: "", fullName: "", role: "user" });
-  const [editForm, setEditForm] = useState({ fullName: "", email: "", role: "user", password: "" });
+  const [editForm, setEditForm] = useState({ fullName: "", email: "", role: "user", password: "", bankName: "", bankAccount: "" });
   const [submitting, setSubmitting] = useState(false);
 
   async function loadUsers() {
@@ -70,7 +70,7 @@ export default function UsersPage() {
 
   function openEdit(u: User) {
     setEditTarget(u);
-    setEditForm({ fullName: u.fullName, email: u.email, role: u.role, password: "" });
+    setEditForm({ fullName: u.fullName, email: u.email, role: u.role, password: "", bankName: (u as any).bankName ?? "", bankAccount: (u as any).bankAccount ?? "" });
   }
 
   async function handleEdit(e: React.FormEvent) {
@@ -78,7 +78,7 @@ export default function UsersPage() {
     if (!editTarget) return;
     setSubmitting(true);
     try {
-      const payload: any = { fullName: editForm.fullName, email: editForm.email, role: editForm.role };
+      const payload: any = { fullName: editForm.fullName, email: editForm.email, role: editForm.role, bankName: editForm.bankName, bankAccount: editForm.bankAccount };
       if (editForm.password) payload.password = editForm.password;
       await api.updateUser(editTarget.id, payload);
       setEditTarget(null);
@@ -358,6 +358,18 @@ export default function UsersPage() {
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
                 </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">ธนาคาร</label>
+                  <input placeholder="เช่น กสิกรไทย, SCB..." value={editForm.bankName} onChange={(e) => setEditForm({ ...editForm, bankName: e.target.value })}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:border-transparent focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">เลขบัญชี</label>
+                  <input placeholder="xxx-x-xxxxx-x" value={editForm.bankAccount} onChange={(e) => setEditForm({ ...editForm, bankAccount: e.target.value })}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:border-transparent focus:outline-none" />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">รหัสผ่านใหม่ <span className="text-gray-400 font-normal">(เว้นว่างถ้าไม่เปลี่ยน)</span></label>

@@ -31,7 +31,7 @@ export const api = {
   getMe: () => request("/users/me"),
   createUser: (data: { email: string; password: string; fullName: string; role?: string }) =>
     request("/users", { method: "POST", body: JSON.stringify(data) }),
-  updateUser: (userId: string, data: { fullName?: string; email?: string; role?: string; password?: string }) =>
+  updateUser: (userId: string, data: { fullName?: string; email?: string; role?: string; password?: string; bankName?: string; bankAccount?: string }) =>
     request(`/users/${userId}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteUser: (userId: string) =>
     request(`/users/${userId}`, { method: "DELETE" }),
