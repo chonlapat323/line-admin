@@ -36,25 +36,35 @@ export default function BreakdownPage() {
   const month    = params.get("month") ?? "";
   const userName = params.get("name") ?? "พนักงาน";
 
-  const [visits, setVisits]     = useState<Visit[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [visits, setVisits]         = useState<Visit[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
-  const [commRate, setCommRate] = useState(0);
+  const [commRate, setCommRate]     = useState(0);
+  // null = ยังไม่จ่าย, number = ยอดที่จ่ายจริง (stamped)
+  const [paidAmount, setPaidAmount] = useState<number | null>(null);
+  const [paidAt, setPaidAt]         = useState<string | null>(null);
 
   // Filters
-  const [search, setSearch]         = useState("");
-  const [province, setProvince]     = useState("");
-  const [minAmt, setMinAmt]         = useState("");
-  const [maxAmt, setMaxAmt]         = useState("");
+  const [search, setSearch]     = useState("");
+  const [province, setProvince] = useState("");
+  const [minAmt, setMinAmt]     = useState("");
+  const [maxAmt, setMaxAmt]     = useState("");
 
   useEffect(() => {
     if (!userId || !month) return;
     Promise.all([
       api.getCommissionBreakdown(userId, month),
       api.getCommissionSettings(),
-    ]).then(([v, s]) => {
+      api.getCommissionPayments(month),
+    ]).then(([v, s, pays]) => {
       setVisits(v);
       setCommRate(s?.rate ?? 0);
+      // หา payment record ของ user นี้ในเดือนนี้
+      const pay = (pays as any[]).find((p: any) => p.userId === userId);
+      if (pay) {
+        setPaidAmount(pay.amount);
+        setPaidAt(pay.paidAt);
+      }
     }).catch(console.error).finally(() => setLoading(false));
   }, [userId, month]);
 
@@ -76,7 +86,8 @@ export default function BreakdownPage() {
   }, [visits, search, province, minAmt, maxAmt]);
 
   const totalAmount = filtered.reduce((s, v) => s + (v.orderAmount ?? 0), 0);
-  const commission  = Math.round(totalAmount * commRate) / 100;
+  // ถ้าจ่ายแล้ว → ใช้ยอดที่ stamp ไว้เสมอ ไม่ recalculate
+  const commission  = paidAmount !== null ? paidAmount : Math.round(totalAmount * commRate) / 100;
 
   return (
     <div className="space-y-4">
@@ -92,8 +103,13 @@ export default function BreakdownPage() {
         </button>
         <div>
           <h2 className="text-xl font-bold text-gray-800">{userName}</h2>
-          <p className="text-sm text-gray-400 mt-0.5">{thaiMonth(month)} · {visits.length} ออเดอร์</p>
+          <p className="text-sm text-gray-400 mt-0.5">{thaiMonth(month)} · {visits.length} สลิป</p>
         </div>
+        {paidAmount !== null && (
+          <span className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 text-green-700 text-xs font-semibold border border-green-100">
+            ✓ จ่ายแล้ว {paidAt ? new Date(paidAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : ""}
+          </span>
+        )}
       </div>
 
       {/* Summary cards */}
@@ -106,11 +122,23 @@ export default function BreakdownPage() {
           <p className="text-xs text-gray-400 mt-1">{filtered.length} รายการ (กรองแล้ว)</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <p className="text-xs text-gray-400 font-medium mb-1">ค่าคอม {commRate}%</p>
-          <p className="text-2xl font-bold text-amber-600">
-            ฿{commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">คำนวณจากยอดที่กรอง</p>
+          {paidAmount !== null ? (
+            <>
+              <p className="text-xs text-green-600 font-medium mb-1">ค่าคอมที่จ่ายจริง</p>
+              <p className="text-2xl font-bold text-green-700">
+                ฿{commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">ยอดที่บันทึกไว้ตอนจ่าย</p>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-gray-400 font-medium mb-1">ค่าคอม {commRate}% (ประมาณการ)</p>
+              <p className="text-2xl font-bold text-amber-600">
+                ฿{commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">คำนวณจากยอดที่กรอง</p>
+            </>
+          )}
         </div>
       </div>
 
