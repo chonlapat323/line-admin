@@ -22,6 +22,10 @@ export default function SettingsPage() {
   const [commissionThreshold, setCommissionThreshold] = useState("");
   const [commissionLoading, setCommissionLoading] = useState(false);
 
+  const [visitSheetId, setVisitSheetId] = useState("");
+  const [commissionSheetId, setCommissionSheetId] = useState("");
+  const [sheetLoading, setSheetLoading] = useState(false);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
   useEffect(() => {
@@ -30,14 +34,17 @@ export default function SettingsPage() {
       fetch(`${API_URL}/settings`).then((r) => r.json()),
       fetch(`${API_URL}/settings/slip`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
       fetch(`${API_URL}/settings/commission`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+      fetch(`${API_URL}/settings/sheets`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
     ])
-      .then(([line, slip, commission]) => {
+      .then(([line, slip, commission, sheets]) => {
         if (line.lineBotId) setLineBotId(line.lineBotId);
         setSlipProvider(slip.provider || "slip2go");
         setHasSlip2GoSecret(slip.hasSlip2GoSecret || false);
         setHasEasySlipSecret(slip.hasEasySlipSecret || false);
         setCommissionRate(commission.rate > 0 ? String(commission.rate) : "");
         setCommissionThreshold(commission.threshold > 0 ? String(commission.threshold) : "");
+        setVisitSheetId(sheets.visitSheetId || "");
+        setCommissionSheetId(sheets.commissionSheetId || "");
       })
       .catch(() => toast("โหลดการตั้งค่าล้มเหลว", "error"))
       .finally(() => setInitialLoading(false));
@@ -93,6 +100,16 @@ export default function SettingsPage() {
       toast("บันทึก Commission Settings สำเร็จ", "success");
     } catch { toast("บันทึกล้มเหลว", "error"); }
     finally { setCommissionLoading(false); }
+  }
+
+  async function handleSaveSheets(e: React.FormEvent) {
+    e.preventDefault();
+    setSheetLoading(true);
+    try {
+      await api.updateSheetSettings({ visitSheetId, commissionSheetId });
+      toast("บันทึก Google Sheets สำเร็จ", "success");
+    } catch { toast("บันทึกล้มเหลว", "error"); }
+    finally { setSheetLoading(false); }
   }
 
   return (
@@ -249,6 +266,33 @@ export default function SettingsPage() {
           <button type="submit" disabled={commissionLoading || initialLoading}
             className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
             {commissionLoading ? "กำลังบันทึก..." : "บันทึก Commission Settings"}
+          </button>
+        </form>
+      </div>
+      {/* Google Sheets */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
+          <span className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center text-xs">📊</span>
+          Google Sheets
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">วาง Spreadsheet ID จาก URL: docs.google.com/spreadsheets/d/<span className="font-mono font-semibold text-gray-600">ID ตรงนี้</span>/edit</p>
+        <form onSubmit={handleSaveSheets} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Sheet ID — บันทึกทริป</label>
+            <input type="text" value={visitSheetId} onChange={(e) => setVisitSheetId(e.target.value)}
+              placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-green-400 focus:outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Sheet ID — บันทึกค่าคอม (slip อนุมัติแล้ว)</label>
+            <input type="text" value={commissionSheetId} onChange={(e) => setCommissionSheetId(e.target.value)}
+              placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-green-400 focus:outline-none" />
+            <p className="text-xs text-gray-400 mt-1">บันทึกอัตโนมัติเมื่อ admin กด "อนุมัติ" ใน หน้าตรวจสอบสลิป</p>
+          </div>
+          <button type="submit" disabled={sheetLoading || initialLoading}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
+            {sheetLoading ? "กำลังบันทึก..." : "บันทึก Google Sheets"}
           </button>
         </form>
       </div>

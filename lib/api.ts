@@ -85,4 +85,8 @@ export const api = {
 
   createCommissionPayment: (formData: FormData) =>
     request('/commission-payments', { method: 'POST', body: formData, headers: {} }),
+
+  getSheetSettings: () => request('/settings/sheets'),
+  updateSheetSettings: (data: { visitSheetId?: string; commissionSheetId?: string }) =>
+    request('/settings/sheets', { method: 'PATCH', body: JSON.stringify(data) }),
 };
