@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -260,7 +261,6 @@ function HistoryTab() {
   const [loading, setLoading] = useState(true);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const [users, setUsers] = useState<{ id: string; fullName: string }[]>([]);
-  const [breakdownPayment, setBreakdownPayment] = useState<Payment | null>(null);
 
   // Filters
   const [historyMonth, setHistoryMonth] = useState(getCurrentMonth());
@@ -433,7 +433,7 @@ function HistoryTab() {
                     <br />{new Date(p.paidAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
                   </td>
                   <td className="px-4 py-3">
-                    <button onClick={() => setBreakdownPayment(p)}
+                    <button onClick={() => router.push(`/dashboard/commissions/breakdown?userId=${p.userId}&month=${p.month}&name=${encodeURIComponent(p.user.fullName)}`)}
                       className="text-xs font-medium text-green-600 hover:text-green-700 hover:underline whitespace-nowrap">
                       ดูออเดอร์
                     </button>
@@ -463,14 +463,6 @@ function HistoryTab() {
         </div>
       )}
 
-      {breakdownPayment && (
-        <BreakdownModal
-          userId={breakdownPayment.userId}
-          month={breakdownPayment.month}
-          user={breakdownPayment.user}
-          onClose={() => setBreakdownPayment(null)}
-        />
-      )}
     </div>
   );
 }
@@ -486,8 +478,12 @@ export default function CommissionsPage() {
   const [statusFilter, setStatusFilter] = useState("reached");
   const [search, setSearch] = useState("");
 
-  const [breakdownUser, setBreakdownUser] = useState<UserSummary | null>(null);
+  const router = useRouter();
   const [payingRow, setPayingRow] = useState<UserSummary | null>(null);
+
+  function goBreakdown(userId: string, name: string) {
+    router.push(`/dashboard/commissions/breakdown?userId=${userId}&month=${month}&name=${encodeURIComponent(name)}`);
+  }
 
   const load = useCallback((m: string) => {
     setLoading(true);
@@ -525,7 +521,7 @@ export default function CommissionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">ค่าคอมมิชชันรายเดือน</h2>
+          <h2 className="text-xl font-bold text-gray-800">ค่าคอมมิชชัน</h2>
           <p className="text-sm text-gray-400 mt-0.5">คำนวณจากยอด verified + approved + legacy (ไม่รวม pending / rejected)</p>
         </div>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
@@ -666,7 +662,7 @@ export default function CommissionsPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button onClick={() => setBreakdownUser(row)}
+                          <button onClick={() => goBreakdown(row.userId, row.user.fullName)}
                             className="text-gray-700 font-medium hover:text-green-600 hover:underline transition-colors">
                             {row.visitCount}
                           </button>
@@ -729,11 +725,6 @@ export default function CommissionsPage() {
       )}
 
       {/* Modals */}
-      {breakdownUser && (
-        <BreakdownModal
-          userId={breakdownUser.userId} month={month} user={breakdownUser.user}
-          onClose={() => setBreakdownUser(null)} />
-      )}
       {payingRow && (
         <PayModal
           row={payingRow} month={month}
