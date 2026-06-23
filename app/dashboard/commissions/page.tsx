@@ -642,7 +642,7 @@ export default function CommissionsPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-8">#</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">เซล</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ออเดอร์</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">จำนวนสลิป</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ยอดขายรวม</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500">สถานะ</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ค่าคอม</th>
