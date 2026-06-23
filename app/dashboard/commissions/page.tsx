@@ -257,6 +257,7 @@ function stepMonth(month: string, delta: number) {
 }
 
 function HistoryTab() {
+  const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
