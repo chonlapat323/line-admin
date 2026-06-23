@@ -261,11 +261,8 @@ function HistoryTab() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
-  const [users, setUsers] = useState<{ id: string; fullName: string }[]>([]);
-
   // Filters
   const [historyMonth, setHistoryMonth] = useState(getCurrentMonth());
-  const [personFilter, setPersonFilter] = useState(""); // "" = ทุกคน
   const [slipFilter, setSlipFilter] = useState("all");
   const [search, setSearch] = useState("");
 
@@ -273,15 +270,6 @@ function HistoryTab() {
   const isCurrentMonth = historyMonth === currentMonth;
 
   useEffect(() => {
-    api.getUsers()
-      .then((list: { id: string; fullName: string; role: string }[]) =>
-        setUsers(list.filter((u) => u.role !== "admin").map((u) => ({ id: u.id, fullName: u.fullName })))
-      )
-      .catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    setPersonFilter("");
     setSearch("");
     setLoading(true);
     api.getCommissionPayments(historyMonth)
@@ -292,7 +280,6 @@ function HistoryTab() {
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {
-      if (personFilter && p.userId !== personFilter) return false;
       if (slipFilter === "has_slip" && !p.slipUrl) return false;
       if (slipFilter === "no_slip" && p.slipUrl) return false;
       if (search.trim()) {
@@ -301,7 +288,7 @@ function HistoryTab() {
       }
       return true;
     });
-  }, [payments, personFilter, slipFilter, search]);
+  }, [payments, slipFilter, search]);
 
   const total = filtered.reduce((s, p) => s + p.amount, 0);
 
@@ -327,25 +314,7 @@ function HistoryTab() {
           </button>
         </div>
         <div className="border-t border-gray-100" />
-        {/* Row 2: Person filter */}
-        <div className="flex gap-2 flex-wrap items-center">
-          <button onClick={() => setPersonFilter("")}
-            className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
-              personFilter === "" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}>
-            ทุกคน
-          </button>
-          {users.map((u) => (
-            <button key={u.id} onClick={() => setPersonFilter(u.id)}
-              className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
-                personFilter === u.id ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}>
-              {u.fullName}
-            </button>
-          ))}
-        </div>
-        <div className="border-t border-gray-100" />
-        {/* Row 3: Slip filter + search */}
+        {/* Slip filter + search */}
         <div className="flex gap-2 flex-wrap items-center">
           {[
             { value: "all", label: "ทั้งหมด" },
