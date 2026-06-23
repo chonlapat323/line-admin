@@ -7,8 +7,8 @@ import { ToastProvider } from "@/components/ui/toast";
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "BeautyUp LINE Admin",
-  description: "ระบบส่งรูปเข้า LINE Group",
+  title: "BeautyUp SALES Admin",
+  description: "ระบบจัดการทีมขาย BeautyUp",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
