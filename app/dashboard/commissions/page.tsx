@@ -491,7 +491,7 @@ function HistoryTab() {
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function CommissionsPage() {
-  const [month, setMonth] = useState(getCurrentMonth());
+  const month = getCurrentMonth();
   const [data, setData] = useState<CommissionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -546,7 +546,9 @@ export default function CommissionsPage() {
           <h2 className="text-xl font-bold text-gray-800">ค่าคอมมิชชัน</h2>
           <p className="text-sm text-gray-400 mt-0.5">คำนวณจากยอด verified + approved + legacy (ไม่รวม pending / rejected)</p>
         </div>
-        <MonthPicker value={month} onChange={setMonth} maxValue={getCurrentMonth()} />
+        <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-green-50 text-green-700 text-sm font-semibold border border-green-100">
+          📅 {MONTH_NAMES_TH[parseInt(month.split("-")[1]) - 1]} {month.split("-")[0]}
+        </span>
       </div>
 
       {/* Summary cards */}
