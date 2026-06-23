@@ -708,7 +708,7 @@ export default function CommissionsPage() {
                               </div>
                             ) : row.pendingCount > 0 ? (
                               <div className="flex flex-col items-center gap-1">
-                                <button onClick={(e) => { e.stopPropagation(); router.push("/dashboard/approvals"); }}
+                                <button onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/approvals?userId=${row.userId}`); }}
                                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer">
                                   ⏳ รอยืนยัน {row.pendingCount} รายการ
                                 </button>

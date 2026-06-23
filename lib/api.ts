@@ -48,7 +48,7 @@ export const api = {
     province?: string; result?: string; tripType?: string;
     visitType?: string; customerType?: string; search?: string;
     dateFrom?: string; dateTo?: string;
-    slipStatus?: string;
+    slipStatus?: string; filterUserId?: string;
   } = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });

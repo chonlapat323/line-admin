@@ -1,5 +1,6 @@
 "use client";
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 
 interface VisitRecord {
@@ -100,6 +101,7 @@ function ApproveModal({ visit, onClose, onDone }: {
 const PAGE_SIZE = 20;
 
 export default function ApprovalsPage() {
+  const searchParams = useSearchParams();
   const [visits, setVisits] = useState<VisitRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -109,6 +111,7 @@ export default function ApprovalsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [slipStatusFilter, setSlipStatusFilter] = useState("pending_approval");
+  const filterUserId = searchParams.get("userId") ?? undefined;
 
   const [approvingVisit, setApprovingVisit] = useState<VisitRecord | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -124,11 +127,12 @@ export default function ApprovalsPage() {
       dateTo: dateTo || undefined,
       slipStatus: slipStatusFilter || undefined,
       result: "buy",
+      filterUserId,
     })
       .then((res) => { setVisits(res?.data ?? []); setTotal(res?.total ?? 0); })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [search, dateFrom, dateTo, slipStatusFilter]);
+  }, [search, dateFrom, dateTo, slipStatusFilter, filterUserId]);
 
   useEffect(() => {
     setPage(1);
