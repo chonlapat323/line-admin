@@ -249,12 +249,86 @@ function PayModal({ row, month, onClose, onDone }: {
   );
 }
 
-// ─── History Tab ─────────────────────────────────────────────────────────────
-function stepMonth(month: string, delta: number) {
-  const [y, m] = month.split("-").map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+// ─── Month Picker ─────────────────────────────────────────────────────────────
+const MONTH_NAMES_TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
+function MonthPicker({ value, onChange, maxValue }: { value: string; onChange: (v: string) => void; maxValue?: string }) {
+  const [open, setOpen] = useState(false);
+  const [pickYear, setPickYear] = useState(() => parseInt(value.split("-")[0]));
+  const ref = useRef<HTMLDivElement>(null);
+
+  const [curY, curM] = value.split("-").map(Number);
+  const [maxY, maxM] = maxValue ? maxValue.split("-").map(Number) : [9999, 12];
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  function select(m: number) {
+    onChange(`${pickYear}-${String(m).padStart(2, "0")}`);
+    setOpen(false);
+  }
+
+  const label = new Date(value + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" });
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => { setPickYear(curY); setOpen((o) => !o); }}
+        className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        {label}
+        <svg className="w-3 h-3 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-2 left-0 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-64">
+          {/* Year navigation */}
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={() => setPickYear((y) => y - 1)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 font-bold text-base">‹</button>
+            <span className="text-sm font-bold text-gray-800">
+              {new Date(pickYear, 0, 1).toLocaleDateString("th-TH", { year: "numeric" })}
+            </span>
+            <button onClick={() => setPickYear((y) => y + 1)}
+              disabled={pickYear >= maxY}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 font-bold text-base disabled:opacity-30 disabled:cursor-not-allowed">›</button>
+          </div>
+          {/* Month grid */}
+          <div className="grid grid-cols-4 gap-1">
+            {MONTH_NAMES_TH.map((name, i) => {
+              const m = i + 1;
+              const isSelected = pickYear === curY && m === curM;
+              const isDisabled = pickYear > maxY || (pickYear === maxY && m > maxM);
+              return (
+                <button key={m} onClick={() => !isDisabled && select(m)} disabled={isDisabled}
+                  className={`py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    isSelected ? "bg-green-500 text-white" :
+                    isDisabled ? "text-gray-300 cursor-not-allowed" :
+                    "hover:bg-green-50 text-gray-700"
+                  }`}>
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
+
+// ─── History Tab ─────────────────────────────────────────────────────────────
 
 function HistoryTab() {
   const router = useRouter();
@@ -296,23 +370,7 @@ function HistoryTab() {
     <div className="space-y-3">
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2.5">
-        {/* Row 1: Month navigation */}
-        <div className="flex gap-2 items-center">
-          <button onClick={() => setHistoryMonth(stepMonth(historyMonth, -1))}
-            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 text-lg font-bold transition-colors">
-            ‹
-          </button>
-          <div className="flex-1 flex justify-center">
-            <span className="text-sm font-bold text-gray-800">
-              {new Date(historyMonth + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" })}
-            </span>
-          </div>
-          <button onClick={() => setHistoryMonth(stepMonth(historyMonth, 1))}
-            disabled={isCurrentMonth}
-            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 text-lg font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-            ›
-          </button>
-        </div>
+        <MonthPicker value={historyMonth} onChange={setHistoryMonth} maxValue={currentMonth} />
         <div className="border-t border-gray-100" />
         {/* Slip filter + search */}
         <div className="flex gap-2 flex-wrap items-center">
@@ -358,7 +416,6 @@ function HistoryTab() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">หมายเหตุ</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">จ่ายโดย</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">วันที่จ่าย</th>
-                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -374,10 +431,11 @@ function HistoryTab() {
                 </tr>
               )}
               {!loading && filtered.map((p) => (
-                <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                <tr key={p.id} onClick={() => router.push(`/dashboard/commissions/breakdown?userId=${p.userId}&month=${p.month}&name=${encodeURIComponent(p.user.fullName)}`)}
+                  className="border-b border-gray-50 hover:bg-green-50/40 cursor-pointer transition-colors">
                   <td className="px-4 py-3">
                     {p.slipUrl ? (
-                      <button onClick={() => setPreviewImg(p.slipUrl!)} className="focus:outline-none">
+                      <button onClick={(e) => { e.stopPropagation(); setPreviewImg(p.slipUrl!); }} className="focus:outline-none">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={p.slipUrl} alt="proof" className="w-10 h-10 object-cover rounded-lg border border-gray-100 hover:opacity-80" />
                       </button>
@@ -402,12 +460,6 @@ function HistoryTab() {
                     {new Date(p.paidAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
                     <br />{new Date(p.paidAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
                   </td>
-                  <td className="px-4 py-3">
-                    <button onClick={() => router.push(`/dashboard/commissions/breakdown?userId=${p.userId}&month=${p.month}&name=${encodeURIComponent(p.user.fullName)}`)}
-                      className="text-xs font-medium text-green-600 hover:text-green-700 hover:underline whitespace-nowrap">
-                      ดูออเดอร์
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -418,7 +470,7 @@ function HistoryTab() {
                     แสดง {filtered.length} จาก {payments.length} รายการ
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-green-700">฿{total.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
-                  <td colSpan={4} />
+                  <td colSpan={3} />
                 </tr>
               </tfoot>
             )}
@@ -494,8 +546,7 @@ export default function CommissionsPage() {
           <h2 className="text-xl font-bold text-gray-800">ค่าคอมมิชชัน</h2>
           <p className="text-sm text-gray-400 mt-0.5">คำนวณจากยอด verified + approved + legacy (ไม่รวม pending / rejected)</p>
         </div>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
-          className="bg-gray-100 rounded-xl px-3 py-1.5 text-sm border-0 focus:ring-2 focus:ring-green-400 focus:outline-none text-gray-600 font-medium" />
+        <MonthPicker value={month} onChange={setMonth} maxValue={getCurrentMonth()} />
       </div>
 
       {/* Summary cards */}
