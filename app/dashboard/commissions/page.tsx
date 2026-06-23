@@ -644,7 +644,8 @@ export default function CommissionsPage() {
                     const paid = paidSet.has(row.userId);
                     const paidRecord = payments.find((p) => p.userId === row.userId);
                     return (
-                      <tr key={row.userId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <tr key={row.userId} onClick={() => goBreakdown(row.userId, row.user.fullName)}
+                        className="border-b border-gray-50 hover:bg-green-50/40 cursor-pointer transition-colors">
                         <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
                         <td className="px-4 py-3">
                           <p className="font-semibold text-gray-800">{row.user.fullName}</p>
@@ -662,12 +663,7 @@ export default function CommissionsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <button onClick={() => goBreakdown(row.userId, row.user.fullName)}
-                            className="text-gray-700 font-medium hover:text-green-600 hover:underline transition-colors">
-                            {row.visitCount}
-                          </button>
-                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-gray-700">{row.visitCount}</td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-800">฿{row.totalAmount.toLocaleString("th-TH")}</td>
                         <td className="px-4 py-3 text-center">
                           {row.reachedThreshold ? (
@@ -696,7 +692,7 @@ export default function CommissionsPage() {
                                 <span className="text-xs text-gray-400">ยืนยันครบก่อนจ่าย</span>
                               </div>
                             ) : (
-                              <button onClick={() => setPayingRow(row)}
+                              <button onClick={(e) => { e.stopPropagation(); setPayingRow(row); }}
                                 className="px-3 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors whitespace-nowrap">
                                 บันทึกการจ่าย
                               </button>
