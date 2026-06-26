@@ -3,33 +3,58 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
-const ADMIN_ONLY_PATHS = ["/dashboard/users", "/dashboard/settings"];
+type MenuPermission = {
+  menu: string;
+  canView: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+};
+
+type StoredUser = {
+  fullName: string;
+  email: string;
+  role: string;
+  roleId?: string | null;
+  roleLabel?: string;
+  permissions?: MenuPermission[];
+};
 
 const navItems = [
-  { href: "/dashboard", label: "ภาพรวม", icon: "📊", exact: true },
-  { href: "/dashboard/sales", label: "สถิติเซล", icon: "📈" },
-  { href: "/dashboard/visits", label: "ประวัติการเยี่ยม", icon: "🗂️" },
-  { href: "/dashboard/approvals", label: "จัดการสลิป", icon: "🧾" },
-  { href: "/dashboard/commissions", label: "ค่าคอมมิชชัน", icon: "💰" },
-  { href: "/dashboard/users", label: "จัดการ Users", icon: "👥", adminOnly: true },
-  { href: "/dashboard/settings", label: "ตั้งค่า", icon: "⚙️", adminOnly: true },
+  { href: "/dashboard", label: "ภาพรวม", icon: "📊", menu: "dashboard", exact: true },
+  { href: "/dashboard/sales", label: "สถิติเซล", icon: "📈", menu: "sales" },
+  { href: "/dashboard/visits", label: "ประวัติการเยี่ยม", icon: "🗂️", menu: "visits" },
+  { href: "/dashboard/approvals", label: "จัดการสลิป", icon: "🧾", menu: "approvals" },
+  { href: "/dashboard/commissions", label: "ค่าคอมมิชชัน", icon: "💰", menu: "commissions" },
+  { href: "/dashboard/users", label: "จัดการ Users", icon: "👥", menu: "users" },
+  { href: "/dashboard/roles", label: "จัดการสิทธิ์", icon: "🔐", menu: "roles" },
+  { href: "/dashboard/settings", label: "ตั้งค่า", icon: "⚙️", menu: "settings" },
 ];
+
+function canViewMenu(user: StoredUser | null, menu: string): boolean {
+  if (!user) return false;
+  // Legacy admin with no permissions array → full access
+  if (user.role === "admin" && !user.permissions?.length) return true;
+  return user.permissions?.find((p) => p.menu === menu)?.canView ?? false;
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<{ fullName: string; email: string; role: string } | null>(null);
+  const [user, setUser] = useState<StoredUser | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     const u = localStorage.getItem("user");
     if (!token || !u) { router.push("/login"); return; }
-    const parsed = JSON.parse(u);
+    const parsed: StoredUser = JSON.parse(u);
     setUser(parsed);
 
-    const isAdminOnly = ADMIN_ONLY_PATHS.some((p) => pathname.startsWith(p));
-    if (isAdminOnly && parsed.role !== "admin") {
-      router.replace("/dashboard");
+    // Guard: if current path is not viewable, redirect to dashboard
+    const currentNav = navItems.find((n) => n.exact ? pathname === n.href : pathname.startsWith(n.href));
+    if (currentNav && currentNav.menu !== "dashboard") {
+      if (!canViewMenu(parsed, currentNav.menu)) {
+        router.replace("/dashboard");
+      }
     }
   }, [router, pathname]);
 
@@ -41,8 +66,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!user) return null;
 
-  const isAdmin = user.role === "admin";
-  const visibleNav = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const visibleNav = navItems.filter((item) => canViewMenu(user, item.menu));
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -78,8 +102,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="min-w-0">
               <p className="text-sm font-medium text-white truncate">{user.fullName}</p>
               <p className="text-xs text-gray-400 truncate">{user.email}</p>
-              <p className={`text-xs font-semibold mt-0.5 ${isAdmin ? "text-green-400" : "text-gray-500"}`}>
-                {isAdmin ? "แอดมิน" : "ผู้ใช้ทั่วไป"}
+              <p className="text-xs font-semibold mt-0.5 text-green-400">
+                {user.roleLabel ?? (user.role === "admin" ? "แอดมิน" : "ผู้ใช้ทั่วไป")}
               </p>
             </div>
           </div>

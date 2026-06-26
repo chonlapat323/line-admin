@@ -8,38 +8,48 @@ interface User {
   fullName: string;
   email: string;
   role: string;
+  roleId?: string | null;
   bankName: string | null;
   bankAccount: string | null;
   createdAt: string;
 }
 
-const ROLES = [
-  { value: "", label: "ทุกสิทธิ์" },
-  { value: "admin", label: "Admin" },
-  { value: "user", label: "User" },
-];
+interface RoleOption {
+  id: string;
+  name: string;
+  label: string;
+}
 
 export default function UsersPage() {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
+  const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
 
   useEffect(() => {
     const u = localStorage.getItem("user");
-    if (!u || JSON.parse(u).role !== "admin") {
-      window.location.replace("/dashboard");
-      return;
-    }
+    if (!u) { window.location.replace("/dashboard"); return; }
+    const parsed = JSON.parse(u);
+    const perms: any[] = parsed.permissions ?? [];
+    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const userPerm = perms.find((p: any) => p.menu === "users");
+    const canView = isLegacyAdmin || (userPerm?.canView ?? false);
+    if (!canView) { window.location.replace("/dashboard"); return; }
+    setCanEdit(isLegacyAdmin || (userPerm?.canEdit ?? false));
+    setCanDelete(isLegacyAdmin || (userPerm?.canDelete ?? false));
     setAuthorized(true);
+    api.getRoles().then((data: RoleOption[]) => setRoleOptions(data)).catch(() => {});
   }, []);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [editTarget, setEditTarget] = useState<User | null>(null);
-  const [form, setForm] = useState({ email: "", password: "", fullName: "", role: "user" });
-  const [editForm, setEditForm] = useState({ fullName: "", email: "", role: "user", password: "", bankName: "", bankAccount: "" });
+  const [form, setForm] = useState({ email: "", password: "", fullName: "", roleId: "" });
+  const [editForm, setEditForm] = useState({ fullName: "", email: "", roleId: "", password: "", bankName: "", bankAccount: "" });
   const [submitting, setSubmitting] = useState(false);
 
   async function loadUsers() {
@@ -59,7 +69,7 @@ export default function UsersPage() {
     const q = search.toLowerCase();
     return users.filter((u) => {
       const matchSearch = !q || u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
-      const matchRole = !roleFilter || u.role === roleFilter;
+      const matchRole = !roleFilter || u.roleId === roleFilter || u.role === roleFilter;
       return matchSearch && matchRole;
     });
   }, [users, search, roleFilter]);
@@ -68,9 +78,16 @@ export default function UsersPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.createUser(form);
+      const selectedRole = roleOptions.find((r) => r.id === form.roleId);
+      await api.createUser({
+        email: form.email,
+        password: form.password,
+        fullName: form.fullName,
+        role: selectedRole?.name ?? "user",
+        roleId: form.roleId || undefined,
+      });
       setShowModal(false);
-      setForm({ email: "", password: "", fullName: "", role: "user" });
+      setForm({ email: "", password: "", fullName: "", roleId: "" });
       await loadUsers();
       toast("เพิ่ม User สำเร็จ", "success");
     } catch (err: unknown) {
@@ -82,7 +99,7 @@ export default function UsersPage() {
 
   function openEdit(u: User) {
     setEditTarget(u);
-    setEditForm({ fullName: u.fullName, email: u.email, role: u.role, password: "", bankName: u.bankName ?? "", bankAccount: u.bankAccount ?? "" });
+    setEditForm({ fullName: u.fullName, email: u.email, roleId: u.roleId ?? "", password: "", bankName: u.bankName ?? "", bankAccount: u.bankAccount ?? "" });
   }
 
   async function handleEdit(e: React.FormEvent) {
@@ -90,7 +107,13 @@ export default function UsersPage() {
     if (!editTarget) return;
     setSubmitting(true);
     try {
-      const payload: any = { fullName: editForm.fullName, email: editForm.email, role: editForm.role, bankName: editForm.bankName, bankAccount: editForm.bankAccount };
+      const selectedRole = roleOptions.find((r) => r.id === editForm.roleId);
+      const payload: any = {
+        fullName: editForm.fullName, email: editForm.email,
+        role: selectedRole?.name ?? editTarget.role,
+        roleId: editForm.roleId || null,
+        bankName: editForm.bankName, bankAccount: editForm.bankAccount,
+      };
       if (editForm.password) payload.password = editForm.password;
       await api.updateUser(editTarget.id, payload);
       setEditTarget(null);
@@ -125,15 +148,17 @@ export default function UsersPage() {
           <h2 className="text-xl font-bold text-gray-800">จัดการ Users</h2>
           <p className="text-sm text-gray-400 mt-0.5">{users.length} บัญชีทั้งหมด</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          เพิ่ม User
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            เพิ่ม User
+          </button>
+        )}
       </div>
 
       {/* Filter bar */}
@@ -155,8 +180,9 @@ export default function UsersPage() {
           onChange={(e) => setRoleFilter(e.target.value)}
           className="text-sm border border-gray-200 rounded-xl bg-white px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent text-gray-600"
         >
-          {ROLES.map((r) => (
-            <option key={r.value} value={r.value}>{r.label}</option>
+          <option value="">ทุกสิทธิ์</option>
+          {roleOptions.map((r) => (
+            <option key={r.id} value={r.id}>{r.label}</option>
           ))}
         </select>
       </div>
@@ -222,7 +248,7 @@ export default function UsersPage() {
                       ? "bg-purple-100 text-purple-700"
                       : "bg-green-50 text-green-700"
                   }`}>
-                    {u.role === "admin" ? "Admin" : "User"}
+                    {roleOptions.find((r) => r.id === u.roleId)?.label ?? (u.role === "admin" ? "Admin" : "User")}
                   </span>
                 </td>
                 <td className="px-5 py-4 hidden lg:table-cell">
@@ -240,24 +266,28 @@ export default function UsersPage() {
                 </td>
                 <td className="px-5 py-4 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => openEdit(u)}
-                      className="text-gray-400 hover:text-blue-500 transition-colors p-1.5 rounded-lg hover:bg-blue-50"
-                      title="แก้ไข"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(u)}
-                      className="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50"
-                      title="ลบ"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => openEdit(u)}
+                        className="text-gray-400 hover:text-blue-500 transition-colors p-1.5 rounded-lg hover:bg-blue-50"
+                        title="แก้ไข"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => setDeleteTarget(u)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50"
+                        title="ลบ"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -320,14 +350,16 @@ export default function UsersPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">สิทธิ์</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Role / สิทธิ์</label>
                 <select
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  value={form.roleId}
+                  onChange={(e) => setForm({ ...form, roleId: e.target.value })}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:border-transparent focus:outline-none text-gray-700"
                 >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
+                  <option value="">— เลือก Role —</option>
+                  {roleOptions.filter((r) => r.isActive !== false).map((r) => (
+                    <option key={r.id} value={r.id}>{r.label}</option>
+                  ))}
                 </select>
               </div>
               <div className="flex gap-3 pt-2">
@@ -378,11 +410,13 @@ export default function UsersPage() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:border-transparent focus:outline-none" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">สิทธิ์</label>
-                <select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Role / สิทธิ์</label>
+                <select value={editForm.roleId} onChange={(e) => setEditForm({ ...editForm, roleId: e.target.value })}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:border-transparent focus:outline-none text-gray-700">
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
+                  <option value="">— เลือก Role —</option>
+                  {roleOptions.map((r) => (
+                    <option key={r.id} value={r.id}>{r.label}</option>
+                  ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">

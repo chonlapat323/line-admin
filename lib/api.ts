@@ -29,9 +29,9 @@ export const api = {
 
   getUsers: () => request("/users"),
   getMe: () => request("/users/me"),
-  createUser: (data: { email: string; password: string; fullName: string; role?: string }) =>
+  createUser: (data: { email: string; password: string; fullName: string; role?: string; roleId?: string }) =>
     request("/users", { method: "POST", body: JSON.stringify(data) }),
-  updateUser: (userId: string, data: { fullName?: string; email?: string; role?: string; password?: string; bankName?: string; bankAccount?: string }) =>
+  updateUser: (userId: string, data: { fullName?: string; email?: string; role?: string; roleId?: string | null; password?: string; bankName?: string; bankAccount?: string }) =>
     request(`/users/${userId}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteUser: (userId: string) =>
     request(`/users/${userId}`, { method: "DELETE" }),
@@ -89,4 +89,13 @@ export const api = {
   getSheetSettings: () => request('/settings/sheets'),
   updateSheetSettings: (data: { visitSheetId?: string; commissionSheetId?: string }) =>
     request('/settings/sheets', { method: 'PATCH', body: JSON.stringify(data) }),
+
+  getRoles: () => request('/roles'),
+  getRoleMenus: () => request('/roles/menus'),
+  createRole: (data: { name: string; label: string; permissions: any[] }) =>
+    request('/roles', { method: 'POST', body: JSON.stringify(data) }),
+  updateRole: (id: string, data: { label?: string; permissions?: any[]; isActive?: boolean }) =>
+    request(`/roles/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteRole: (id: string) =>
+    request(`/roles/${id}`, { method: 'DELETE' }),
 };
