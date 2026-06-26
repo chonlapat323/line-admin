@@ -3,14 +3,16 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
+const ADMIN_ONLY_PATHS = ["/dashboard/users", "/dashboard/settings"];
+
 const navItems = [
   { href: "/dashboard", label: "ภาพรวม", icon: "📊", exact: true },
   { href: "/dashboard/sales", label: "สถิติเซล", icon: "📈" },
   { href: "/dashboard/visits", label: "ประวัติการเยี่ยม", icon: "🗂️" },
   { href: "/dashboard/approvals", label: "จัดการสลิป", icon: "🧾" },
   { href: "/dashboard/commissions", label: "ค่าคอมมิชชัน", icon: "💰" },
-  { href: "/dashboard/users", label: "จัดการ Users", icon: "👥" },
-  { href: "/dashboard/settings", label: "ตั้งค่า", icon: "⚙️" },
+  { href: "/dashboard/users", label: "จัดการ Users", icon: "👥", adminOnly: true },
+  { href: "/dashboard/settings", label: "ตั้งค่า", icon: "⚙️", adminOnly: true },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -22,8 +24,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const token = localStorage.getItem("token");
     const u = localStorage.getItem("user");
     if (!token || !u) { router.push("/login"); return; }
-    setUser(JSON.parse(u));
-  }, [router]);
+    const parsed = JSON.parse(u);
+    setUser(parsed);
+
+    const isAdminOnly = ADMIN_ONLY_PATHS.some((p) => pathname.startsWith(p));
+    if (isAdminOnly && parsed.role !== "admin") {
+      router.replace("/dashboard");
+    }
+  }, [router, pathname]);
 
   function logout() {
     localStorage.removeItem("token");
@@ -32,6 +40,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!user) return null;
+
+  const isAdmin = user.role === "admin";
+  const visibleNav = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -43,7 +54,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map((item) => {
+          {visibleNav.map((item) => {
             const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
             return (
               <Link key={item.href} href={item.href}
@@ -67,6 +78,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="min-w-0">
               <p className="text-sm font-medium text-white truncate">{user.fullName}</p>
               <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              <p className={`text-xs font-semibold mt-0.5 ${isAdmin ? "text-green-400" : "text-gray-500"}`}>
+                {isAdmin ? "แอดมิน" : "ผู้ใช้ทั่วไป"}
+              </p>
             </div>
           </div>
           <button onClick={logout}

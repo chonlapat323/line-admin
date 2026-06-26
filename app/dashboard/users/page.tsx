@@ -23,6 +23,16 @@ export default function UsersPage() {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (!u || JSON.parse(u).role !== "admin") {
+      window.location.replace("/dashboard");
+      return;
+    }
+    setAuthorized(true);
+  }, []);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -104,6 +114,8 @@ export default function UsersPage() {
       toast("ลบ User ล้มเหลว", "error");
     }
   }
+
+  if (!authorized) return null;
 
   return (
     <div className="space-y-6">

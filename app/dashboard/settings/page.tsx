@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const [authorized, setAuthorized] = useState(false);
   const [lineBotId, setLineBotId] = useState("");
   const [lineLoading, setLineLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -29,6 +30,16 @@ export default function SettingsPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
   useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (!u || JSON.parse(u).role !== "admin") {
+      window.location.replace("/dashboard");
+      return;
+    }
+    setAuthorized(true);
+  }, []);
+
+  useEffect(() => {
+    if (!authorized) return;
     const token = localStorage.getItem("token");
     Promise.all([
       fetch(`${API_URL}/settings`).then((r) => r.json()),
@@ -48,7 +59,7 @@ export default function SettingsPage() {
       })
       .catch(() => toast("โหลดการตั้งค่าล้มเหลว", "error"))
       .finally(() => setInitialLoading(false));
-  }, []);
+  }, [authorized]);
 
   async function handleSaveLine(e: React.FormEvent) {
     e.preventDefault();
@@ -111,6 +122,8 @@ export default function SettingsPage() {
     } catch { toast("บันทึกล้มเหลว", "error"); }
     finally { setSheetLoading(false); }
   }
+
+  if (!authorized) return null;
 
   return (
     <div className="space-y-6 max-w-lg">
