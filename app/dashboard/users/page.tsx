@@ -18,6 +18,7 @@ interface RoleOption {
   id: string;
   name: string;
   label: string;
+  isActive: boolean;
 }
 
 export default function UsersPage() {
