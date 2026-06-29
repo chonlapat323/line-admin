@@ -86,6 +86,9 @@ export default function RolesPage() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
+  const [canEdit, setCanEdit] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
+
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Role | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Role | null>(null);
@@ -100,10 +103,12 @@ export default function RolesPage() {
     if (!u) { window.location.replace("/dashboard"); return; }
     const parsed = JSON.parse(u);
     const perms: Permission[] = parsed.permissions ?? [];
-    const canView = parsed.role === "admin" && !perms.length
-      ? true
-      : perms.find((p: Permission) => p.menu === "roles")?.canView ?? false;
+    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const rolePerm = perms.find((p: Permission) => p.menu === "roles");
+    const canView = isLegacyAdmin || (rolePerm?.canView ?? false);
     if (!canView) { window.location.replace("/dashboard"); return; }
+    setCanEdit(isLegacyAdmin || (rolePerm?.canEdit ?? false));
+    setCanDelete(isLegacyAdmin || (rolePerm?.canDelete ?? false));
     setAuthorized(true);
     loadRoles();
   }, []);
@@ -194,15 +199,17 @@ export default function RolesPage() {
           <h2 className="text-xl font-bold text-gray-800">จัดการสิทธิ์</h2>
           <p className="text-sm text-gray-400 mt-0.5">{roles.length} Role ทั้งหมด</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          เพิ่ม Role
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            เพิ่ม Role
+          </button>
+        )}
       </div>
 
       {/* Roles table */}
@@ -265,16 +272,18 @@ export default function RolesPage() {
                   </td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => openEdit(role)}
-                        className="text-gray-400 hover:text-blue-500 transition-colors p-1.5 rounded-lg hover:bg-blue-50"
-                        title="แก้ไขสิทธิ์"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                      </button>
-                      {!role.isSystem && (
+                      {canEdit && (
+                        <button
+                          onClick={() => openEdit(role)}
+                          className="text-gray-400 hover:text-blue-500 transition-colors p-1.5 rounded-lg hover:bg-blue-50"
+                          title="แก้ไขสิทธิ์"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      )}
+                      {canDelete && !role.isSystem && (
                         <button
                           onClick={() => setDeleteTarget(role)}
                           className="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50"
