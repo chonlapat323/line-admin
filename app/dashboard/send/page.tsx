@@ -5,9 +5,22 @@ import { api } from "@/lib/api";
 interface User { id: string; fullName: string; email: string; }
 
 export default function SendPage() {
+  const [canEdit, setCanEdit] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sendToAll, setSendToAll] = useState(false);
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (!u) { window.location.replace("/dashboard"); return; }
+    const parsed = JSON.parse(u);
+    const perms: any[] = parsed.permissions ?? [];
+    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const perm = perms.find((p: any) => p.menu === "line");
+    const canView = isLegacyAdmin || (perm?.canView ?? false);
+    if (!canView) { window.location.replace("/dashboard"); return; }
+    setCanEdit(isLegacyAdmin || (perm?.canEdit ?? false));
+  }, []);
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [note, setNote] = useState("");
@@ -113,10 +126,12 @@ export default function SendPage() {
           <p className={`text-sm font-medium ${result.includes("สำเร็จ") ? "text-green-600" : "text-red-500"}`}>{result}</p>
         )}
 
-        <button type="submit" disabled={loading}
-          className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
-          {loading ? "กำลังส่ง..." : "ส่งเข้า LINE Group"}
-        </button>
+        {canEdit && (
+          <button type="submit" disabled={loading}
+            className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
+            {loading ? "กำลังส่ง..." : "ส่งเข้า LINE Group"}
+          </button>
+        )}
       </form>
     </div>
   );

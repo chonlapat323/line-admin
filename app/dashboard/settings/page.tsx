@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 export default function SettingsPage() {
   const { toast } = useToast();
   const [authorized, setAuthorized] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [lineBotId, setLineBotId] = useState("");
   const [lineLoading, setLineLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -31,10 +32,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const u = localStorage.getItem("user");
-    if (!u || JSON.parse(u).role !== "admin") {
-      window.location.replace("/dashboard");
-      return;
-    }
+    if (!u) { window.location.replace("/dashboard"); return; }
+    const parsed = JSON.parse(u);
+    const perms: any[] = parsed.permissions ?? [];
+    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const perm = perms.find((p: any) => p.menu === "settings");
+    const canView = isLegacyAdmin || (perm?.canView ?? false);
+    if (!canView) { window.location.replace("/dashboard"); return; }
+    setCanEdit(isLegacyAdmin || (perm?.canEdit ?? false));
     setAuthorized(true);
   }, []);
 
@@ -157,10 +162,12 @@ export default function SettingsPage() {
               </p>
             </div>
           )}
-          <button type="submit" disabled={lineLoading || initialLoading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
-            {lineLoading ? "กำลังบันทึก..." : "บันทึก"}
-          </button>
+          {canEdit && (
+            <button type="submit" disabled={lineLoading || initialLoading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
+              {lineLoading ? "กำลังบันทึก..." : "บันทึก"}
+            </button>
+          )}
         </form>
       </div>
 
@@ -238,10 +245,12 @@ export default function SettingsPage() {
             )}
           </div>
 
-          <button type="submit" disabled={slipLoading || initialLoading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
-            {slipLoading ? "กำลังบันทึก..." : "บันทึก Slip Settings"}
-          </button>
+          {canEdit && (
+            <button type="submit" disabled={slipLoading || initialLoading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
+              {slipLoading ? "กำลังบันทึก..." : "บันทึก Slip Settings"}
+            </button>
+          )}
         </form>
       </div>
       {/* Commission */}
@@ -276,10 +285,12 @@ export default function SettingsPage() {
               ตัวอย่าง: ถ้ายอดขาย ฿{Number(commissionThreshold).toLocaleString("th-TH")} ขึ้นไป จะได้ค่าคอม {commissionRate}% = ฿{(Number(commissionThreshold) * Number(commissionRate) / 100).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
             </div>
           )}
-          <button type="submit" disabled={commissionLoading || initialLoading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
-            {commissionLoading ? "กำลังบันทึก..." : "บันทึก Commission Settings"}
-          </button>
+          {canEdit && (
+            <button type="submit" disabled={commissionLoading || initialLoading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
+              {commissionLoading ? "กำลังบันทึก..." : "บันทึก Commission Settings"}
+            </button>
+          )}
         </form>
       </div>
       {/* Google Sheets */}
@@ -303,10 +314,12 @@ export default function SettingsPage() {
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-green-400 focus:outline-none" />
             <p className="text-xs text-gray-400 mt-1">บันทึกอัตโนมัติเมื่อ admin กด "อนุมัติ" ใน หน้าตรวจสอบสลิป</p>
           </div>
-          <button type="submit" disabled={sheetLoading || initialLoading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
-            {sheetLoading ? "กำลังบันทึก..." : "บันทึก Google Sheets"}
-          </button>
+          {canEdit && (
+            <button type="submit" disabled={sheetLoading || initialLoading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">
+              {sheetLoading ? "กำลังบันทึก..." : "บันทึก Google Sheets"}
+            </button>
+          )}
         </form>
       </div>
     </div>

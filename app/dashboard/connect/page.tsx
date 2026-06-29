@@ -5,10 +5,23 @@ import { api } from "@/lib/api";
 interface User { id: string; fullName: string; email: string; }
 
 export default function ConnectPage() {
+  const [canEdit, setCanEdit] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [code, setCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (!u) { window.location.replace("/dashboard"); return; }
+    const parsed = JSON.parse(u);
+    const perms: any[] = parsed.permissions ?? [];
+    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const perm = perms.find((p: any) => p.menu === "line");
+    const canView = isLegacyAdmin || (perm?.canView ?? false);
+    if (!canView) { window.location.replace("/dashboard"); return; }
+    setCanEdit(isLegacyAdmin || (perm?.canEdit ?? false));
+  }, []);
 
   useEffect(() => { api.getUsers().then(setUsers); }, []);
 
@@ -42,10 +55,12 @@ export default function ConnectPage() {
           </select>
         </div>
 
-        <button onClick={generateCode} disabled={!selected || loading}
-          className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg transition disabled:opacity-50">
-          {loading ? "กำลังสร้าง..." : "สร้างรหัสยืนยัน"}
-        </button>
+        {canEdit && (
+          <button onClick={generateCode} disabled={!selected || loading}
+            className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg transition disabled:opacity-50">
+            {loading ? "กำลังสร้าง..." : "สร้างรหัสยืนยัน"}
+          </button>
+        )}
 
         {code && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">

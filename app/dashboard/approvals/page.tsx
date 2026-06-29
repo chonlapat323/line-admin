@@ -115,6 +115,19 @@ export default function ApprovalsPage() {
 
   const [approvingVisit, setApprovingVisit] = useState<VisitRecord | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (!u) { window.location.replace("/dashboard"); return; }
+    const parsed = JSON.parse(u);
+    const perms: any[] = parsed.permissions ?? [];
+    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const perm = perms.find((p: any) => p.menu === "approvals");
+    const canView = isLegacyAdmin || (perm?.canView ?? false);
+    if (!canView) { window.location.replace("/dashboard"); return; }
+    setCanEdit(isLegacyAdmin || (perm?.canEdit ?? false));
+  }, []);
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -295,7 +308,7 @@ export default function ApprovalsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {isPending && (
+                      {isPending && canEdit && (
                         <div className="flex gap-1.5">
                           <button onClick={() => setApprovingVisit(v)}
                             className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors whitespace-nowrap">

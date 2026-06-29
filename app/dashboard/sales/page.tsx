@@ -259,9 +259,22 @@ function VisitList({ visits, total }: { visits: VisitRecord[]; total: number }) 
 }
 
 export default function SalesPage() {
+  const [authorized, setAuthorized] = useState(false);
   const [visits, setVisits] = useState<VisitRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("month");
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (!u) { window.location.replace("/dashboard"); return; }
+    const parsed = JSON.parse(u);
+    const perms: any[] = parsed.permissions ?? [];
+    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const perm = perms.find((p: any) => p.menu === "sales");
+    const canView = isLegacyAdmin || (perm?.canView ?? false);
+    if (!canView) { window.location.replace("/dashboard"); return; }
+    setAuthorized(true);
+  }, []);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -340,6 +353,8 @@ export default function SalesPage() {
   }, [filtered]);
 
   const handleToggle = (email: string) => setExpanded((e) => (e === email ? null : email));
+
+  if (!authorized) return null;
 
   return (
     <div className="space-y-6">

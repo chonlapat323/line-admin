@@ -502,6 +502,19 @@ export default function CommissionsPage() {
 
   const router = useRouter();
   const [payingRow, setPayingRow] = useState<UserSummary | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (!u) { window.location.replace("/dashboard"); return; }
+    const parsed = JSON.parse(u);
+    const perms: any[] = parsed.permissions ?? [];
+    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const perm = perms.find((p: any) => p.menu === "commissions");
+    const canView = isLegacyAdmin || (perm?.canView ?? false);
+    if (!canView) { window.location.replace("/dashboard"); return; }
+    setCanEdit(isLegacyAdmin || (perm?.canEdit ?? false));
+  }, []);
 
   function goBreakdown(userId: string, name: string) {
     router.push(`/dashboard/commissions/breakdown?userId=${userId}&month=${month}&name=${encodeURIComponent(name)}`);
@@ -714,12 +727,12 @@ export default function CommissionsPage() {
                                 </button>
                                 <span className="text-xs text-gray-400">ยืนยันครบก่อนจ่าย</span>
                               </div>
-                            ) : (
+                            ) : canEdit ? (
                               <button onClick={(e) => { e.stopPropagation(); setPayingRow(row); }}
                                 className="px-3 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors whitespace-nowrap">
                                 บันทึกการจ่าย
                               </button>
-                            )
+                            ) : <span className="text-gray-300 text-xs">—</span>
                           ) : <span className="text-gray-300 text-xs">—</span>}
                         </td>
                       </tr>

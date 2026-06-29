@@ -23,6 +23,7 @@ const STATUS_OPTIONS = [
 
 export default function HistoryPage() {
   const { toast } = useToast();
+  const [authorized, setAuthorized] = useState(false);
   const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -30,6 +31,18 @@ export default function HistoryPage() {
   const [period, setPeriod] = useState<Period>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (!u) { window.location.replace("/dashboard"); return; }
+    const parsed = JSON.parse(u);
+    const perms: any[] = parsed.permissions ?? [];
+    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const perm = perms.find((p: any) => p.menu === "line");
+    const canView = isLegacyAdmin || (perm?.canView ?? false);
+    if (!canView) { window.location.replace("/dashboard"); return; }
+    setAuthorized(true);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -98,6 +111,8 @@ export default function HistoryPage() {
       barWidth: successRate,
     },
   ];
+
+  if (!authorized) return null;
 
   return (
     <div className="space-y-6">

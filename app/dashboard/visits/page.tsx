@@ -72,7 +72,20 @@ const EMPTY_STATS = { total: 0, buy: 0, noBuy: 0, notFound: 0, totalAmount: 0 };
 
 export default function VisitsPage() {
   const { toast } = useToast();
+  const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (!u) { window.location.replace("/dashboard"); return; }
+    const parsed = JSON.parse(u);
+    const perms: any[] = parsed.permissions ?? [];
+    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const perm = perms.find((p: any) => p.menu === "visits");
+    const canView = isLegacyAdmin || (perm?.canView ?? false);
+    if (!canView) { window.location.replace("/dashboard"); return; }
+    setAuthorized(true);
+  }, []);
 
   // Filters
   const [period, setPeriod] = useState<PeriodFilter>("all");
@@ -163,6 +176,8 @@ export default function VisitsPage() {
   const totalTablePages = pageData.totalPages;
   const pagedVisits = pageData.data;
   const provinceStats = provinceStatsData;
+
+  if (!authorized) return null;
 
   return (
     <div className="space-y-5">
