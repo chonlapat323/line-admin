@@ -367,6 +367,7 @@ export default function SalesPage() {
       </div>
 
       {/* Period filter + Search */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl flex-shrink-0">
           {PERIOD_OPTIONS.map((p) => (
@@ -413,6 +414,7 @@ export default function SalesPage() {
             {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         ))}
+      </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">

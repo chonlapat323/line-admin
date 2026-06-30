@@ -217,6 +217,8 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {/* Filters */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
       {/* Period filter */}
       <div className="flex items-center gap-3">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl flex-shrink-0">
@@ -264,6 +266,7 @@ export default function DashboardPage() {
             {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         ))}
+      </div>
       </div>
 
       {/* Visit stat cards */}
