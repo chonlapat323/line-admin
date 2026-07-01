@@ -88,7 +88,7 @@ export default function VisitsPage() {
   }, []);
 
   // Filters
-  const [period, setPeriod] = useState<PeriodFilter>("all");
+  const [period, setPeriod] = useState<PeriodFilter>("today");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [search, setSearch] = useState("");
