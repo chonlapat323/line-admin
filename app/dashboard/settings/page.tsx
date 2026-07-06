@@ -20,9 +20,10 @@ export default function SettingsPage() {
   const [editEasyslip, setEditEasyslip] = useState(false);
   const [slipLoading, setSlipLoading] = useState(false);
 
-  const [commissionRate, setCommissionRate] = useState("");
   const [commissionThreshold, setCommissionThreshold] = useState("");
   const [commissionLoading, setCommissionLoading] = useState(false);
+  const [tiers, setTiers] = useState<{ max: string; rate: string }[]>([{ max: "", rate: "" }]);
+  const [previewAmount, setPreviewAmount] = useState("");
 
   const [visitSheetId, setVisitSheetId] = useState("");
   const [commissionSheetId, setCommissionSheetId] = useState("");
@@ -57,8 +58,10 @@ export default function SettingsPage() {
         setSlipProvider(slip.provider || "slip2go");
         setHasSlip2GoSecret(slip.hasSlip2GoSecret || false);
         setHasEasySlipSecret(slip.hasEasySlipSecret || false);
-        setCommissionRate(commission.rate > 0 ? String(commission.rate) : "");
         setCommissionThreshold(commission.threshold > 0 ? String(commission.threshold) : "");
+        if (commission.tiers && commission.tiers.length > 0) {
+          setTiers(commission.tiers.map((t: any) => ({ max: t.max != null ? String(t.max) : "", rate: String(t.rate) })));
+        }
         setVisitSheetId(sheets.visitSheetId || "");
         setCommissionSheetId(sheets.commissionSheetId || "");
       })
@@ -104,15 +107,65 @@ export default function SettingsPage() {
     }
   }
 
+  function getTierMin(index: number) {
+    if (index === 0) return 0;
+    return parseFloat(tiers[index - 1].max) || 0;
+  }
+
+  function calcPreview() {
+    const amount = parseFloat(previewAmount);
+    if (!amount || isNaN(amount) || tiers.length === 0) return null;
+    const fullTiers = tiers.map((t, i) => ({
+      min: getTierMin(i), max: t.max !== "" ? parseFloat(t.max) : null, rate: parseFloat(t.rate) || 0,
+    }));
+    let total = 0;
+    const rows: { label: string; commission: number }[] = [];
+    for (const tier of fullTiers) {
+      const tierMax = tier.max ?? Infinity;
+      if (amount <= tier.min) break;
+      const amt = Math.min(amount, tierMax) - tier.min;
+      const com = Math.round(amt * tier.rate) / 100;
+      total += com;
+      const maxLabel = tier.max != null ? `฿${tier.max.toLocaleString("th-TH")}` : "∞";
+      rows.push({ label: `฿${tier.min.toLocaleString("th-TH")} – ${maxLabel} × ${tier.rate}%`, commission: com });
+    }
+    return { rows, total };
+  }
+
+  function addTier() {
+    const lastMin = getTierMin(tiers.length - 1);
+    const suggested = lastMin + 50000;
+    setTiers(prev => [
+      ...prev.slice(0, -1),
+      { ...prev[prev.length - 1], max: String(suggested) },
+      { max: "", rate: "" },
+    ]);
+  }
+
+  function removeTier(index: number) {
+    if (tiers.length <= 1) return;
+    const next = tiers.filter((_, i) => i !== index);
+    if (index === tiers.length - 1) next[next.length - 1] = { ...next[next.length - 1], max: "" };
+    setTiers(next);
+  }
+
   async function handleSaveCommission(e: React.FormEvent) {
     e.preventDefault();
-    const rate = parseFloat(commissionRate);
-    const threshold = parseFloat(commissionThreshold);
-    if (isNaN(rate) || rate < 0 || rate > 100) { toast("กรุณากรอก % ที่ถูกต้อง (0–100)", "error"); return; }
-    if (isNaN(threshold) || threshold < 0) { toast("กรุณากรอกยอดขั้นต่ำที่ถูกต้อง", "error"); return; }
+    for (let i = 0; i < tiers.length; i++) {
+      const rate = parseFloat(tiers[i].rate);
+      if (isNaN(rate) || rate < 0 || rate > 100) { toast(`กรอก % ที่ถูกต้องสำหรับขั้นที่ ${i + 1}`, "error"); return; }
+      if (i < tiers.length - 1) {
+        const max = parseFloat(tiers[i].max);
+        if (isNaN(max) || max <= getTierMin(i)) { toast(`ยอดสูงสุดของขั้นที่ ${i + 1} ต้องมากกว่ายอดต่ำสุด`, "error"); return; }
+      }
+    }
+    const threshold = parseFloat(commissionThreshold) || 0;
+    const fullTiers = tiers.map((t, i) => ({
+      min: getTierMin(i), max: t.max !== "" ? parseFloat(t.max) : null, rate: parseFloat(t.rate) || 0,
+    }));
     setCommissionLoading(true);
     try {
-      await api.updateCommissionSettings({ rate, threshold });
+      await api.updateCommissionSettings({ threshold, tiers: fullTiers });
       toast("บันทึก Commission Settings สำเร็จ", "success");
     } catch { toast("บันทึกล้มเหลว", "error"); }
     finally { setCommissionLoading(false); }
@@ -260,19 +313,10 @@ export default function SettingsPage() {
           ค่าคอมมิชชัน
         </h3>
         <form onSubmit={handleSaveCommission} className="space-y-4">
+          {/* Threshold */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">อัตราค่าคอม (%)</label>
-            <p className="text-xs text-gray-400 mb-2">เปอร์เซ็นต์ของยอดขายรวมที่เซลจะได้รับ</p>
-            <div className="relative">
-              <input type="number" value={commissionRate} onChange={(e) => setCommissionRate(e.target.value)}
-                placeholder="เช่น 5" min="0" max="100" step="0.01"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none pr-10" />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">ยอดขั้นต่ำ (บาท)</label>
-            <p className="text-xs text-gray-400 mb-2">ยอดขายรวมต่อเดือนที่ต้องถึงก่อนจึงจะได้ค่าคอม</p>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">ยอดขั้นต่ำต่อเดือน (บาท)</label>
+            <p className="text-xs text-gray-400 mb-2">ต้องถึงยอดนี้ก่อนจึงจะได้ค่าคอม (0 = ไม่มีขั้นต่ำ)</p>
             <div className="relative">
               <input type="number" value={commissionThreshold} onChange={(e) => setCommissionThreshold(e.target.value)}
                 placeholder="เช่น 50000" min="0" step="1"
@@ -280,11 +324,88 @@ export default function SettingsPage() {
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">บาท</span>
             </div>
           </div>
-          {commissionRate && commissionThreshold && (
-            <div className="p-3 bg-yellow-50 rounded-xl text-xs text-yellow-800">
-              ตัวอย่าง: ถ้ายอดขาย ฿{Number(commissionThreshold).toLocaleString("th-TH")} ขึ้นไป จะได้ค่าคอม {commissionRate}% = ฿{(Number(commissionThreshold) * Number(commissionRate) / 100).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+
+          {/* Tiers */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-2">อัตราขั้นบันได (%)</label>
+            <div className="space-y-2">
+              {tiers.map((tier, i) => {
+                const min = getTierMin(i);
+                const isLast = i === tiers.length - 1;
+                return (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-500 min-w-0">
+                      <span className="font-mono font-semibold text-gray-700 whitespace-nowrap">
+                        ฿{min.toLocaleString("th-TH")}
+                      </span>
+                      <span>–</span>
+                      {isLast ? (
+                        <span className="text-gray-400">∞</span>
+                      ) : (
+                        <div className="relative flex-1 min-w-[80px]">
+                          <input
+                            type="number" value={tier.max}
+                            onChange={(e) => setTiers(prev => prev.map((t, j) => j === i ? { ...t, max: e.target.value } : t))}
+                            placeholder="ยอดสูงสุด" min={min + 1} step="1"
+                            className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-mono font-semibold text-gray-700 focus:ring-1 focus:ring-green-400 focus:outline-none" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="relative w-20 flex-shrink-0">
+                      <input
+                        type="number" value={tier.rate}
+                        onChange={(e) => setTiers(prev => prev.map((t, j) => j === i ? { ...t, rate: e.target.value } : t))}
+                        placeholder="%" min="0" max="100" step="0.01"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-center focus:ring-2 focus:ring-green-400 focus:outline-none pr-7" />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                    </div>
+                    {tiers.length > 1 && (
+                      <button type="button" onClick={() => removeTier(i)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          )}
+            {canEdit && (
+              <button type="button" onClick={addTier}
+                className="mt-2 w-full py-2 text-xs font-semibold text-green-600 border border-dashed border-green-300 rounded-xl hover:bg-green-50 transition-colors">
+                + เพิ่มขั้น
+              </button>
+            )}
+          </div>
+
+          {/* Preview */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">ทดสอบคำนวณ</label>
+            <div className="relative">
+              <input type="number" value={previewAmount} onChange={(e) => setPreviewAmount(e.target.value)}
+                placeholder="ใส่ยอดขายเพื่อดูตัวอย่าง" min="0"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-yellow-400 focus:outline-none pr-14" />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">บาท</span>
+            </div>
+            {(() => {
+              const preview = calcPreview();
+              if (!preview) return null;
+              return (
+                <div className="mt-2 p-3 bg-yellow-50 rounded-xl space-y-1">
+                  {preview.rows.map((r, i) => (
+                    <div key={i} className="flex justify-between text-xs text-yellow-800">
+                      <span>{r.label}</span>
+                      <span className="font-semibold">+฿{r.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-xs font-bold text-yellow-900 border-t border-yellow-200 pt-1 mt-1">
+                    <span>รวมค่าคอม</span>
+                    <span>฿{preview.total.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
           {canEdit && (
             <button type="submit" disabled={commissionLoading || initialLoading}
               className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 text-sm">

@@ -79,7 +79,7 @@ export const api = {
     request("/settings/slip", { method: "PATCH", body: JSON.stringify(data) }),
 
   getCommissionSettings: () => request("/settings/commission"),
-  updateCommissionSettings: (data: { rate?: number; threshold?: number }) =>
+  updateCommissionSettings: (data: { rate?: number; threshold?: number; tiers?: any[] }) =>
     request("/settings/commission", { method: "PATCH", body: JSON.stringify(data) }),
 
   getCommissionSummary: (month: string) =>
