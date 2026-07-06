@@ -3,16 +3,15 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 
-interface VisitRecord {
+interface SlipSubmission {
   id: string;
   shopName: string;
-  province: string;
-  district?: string;
-  result?: string;
-  orderAmount?: number | null;
-  slipUrl?: string | null;
-  slipStatus?: string | null;
+  amount?: number | null;
+  details?: string | null;
+  slipUrl: string;
+  slipStatus: string;
   transRef?: string | null;
+  lineStatus?: string | null;
   createdAt: string;
   user?: { fullName: string; email: string };
 }
@@ -48,10 +47,10 @@ function SlipThumb({ url }: { url: string }) {
   );
 }
 
-function ApproveModal({ visit, onClose, onDone }: {
-  visit: VisitRecord; onClose: () => void; onDone: () => void;
+function ApproveModal({ slip, onClose, onDone }: {
+  slip: SlipSubmission; onClose: () => void; onDone: () => void;
 }) {
-  const [amount, setAmount] = useState(String(visit.orderAmount ?? ""));
+  const [amount, setAmount] = useState(String(slip.amount ?? ""));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -60,7 +59,7 @@ function ApproveModal({ visit, onClose, onDone }: {
     if (!amount || isNaN(amt) || amt <= 0) { setError("กรุณากรอกยอดเงินที่ถูกต้อง"); return; }
     setLoading(true);
     try {
-      await api.approveVisit(visit.id, "approve", amt);
+      await api.approveSlip(slip.id, "approve", amt);
       onDone();
     } catch { setError("เกิดข้อผิดพลาด กรุณาลองใหม่"); }
     finally { setLoading(false); }
@@ -70,13 +69,12 @@ function ApproveModal({ visit, onClose, onDone }: {
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-bold text-gray-800 mb-1">อนุมัติสลิป</h3>
-        <p className="text-xs text-gray-400 mb-4">{visit.shopName} · {visit.user?.fullName}</p>
-        {visit.slipUrl && (
-          <div className="flex justify-center mb-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={visit.slipUrl} alt="slip" className="max-h-52 rounded-xl border border-gray-100 object-contain" />
-          </div>
-        )}
+        <p className="text-xs text-gray-400 mb-4">{slip.shopName} · {slip.user?.fullName}</p>
+        <div className="flex justify-center mb-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={slip.slipUrl} alt="slip" className="max-h-52 rounded-xl border border-gray-100 object-contain" />
+        </div>
+        {slip.details && <p className="text-xs text-gray-500 mb-3 bg-gray-50 rounded-lg px-3 py-2">{slip.details}</p>}
         <div className="mb-4">
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">ยอดเงิน (บาท)</label>
           <input type="number" value={amount} onChange={(e) => { setAmount(e.target.value); setError(""); }}
@@ -102,7 +100,7 @@ const PAGE_SIZE = 20;
 
 export default function ApprovalsPage() {
   const searchParams = useSearchParams();
-  const [visits, setVisits] = useState<VisitRecord[]>([]);
+  const [slips, setSlips] = useState<SlipSubmission[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -110,10 +108,9 @@ export default function ApprovalsPage() {
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [slipStatusFilter, setSlipStatusFilter] = useState("pending_approval");
-  const filterUserId = searchParams.get("userId") ?? undefined;
+  const [statusFilter, setStatusFilter] = useState("");
 
-  const [approvingVisit, setApprovingVisit] = useState<VisitRecord | null>(null);
+  const [approvingSlip, setApprovingSlip] = useState<SlipSubmission | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(false);
 
@@ -133,50 +130,47 @@ export default function ApprovalsPage() {
 
   const load = useCallback((p = 1) => {
     setLoading(true);
-    api.getVisits({
-      page: p, limit: PAGE_SIZE,
+    api.getSlipSubmissions({
+      page: p,
+      limit: PAGE_SIZE,
+      status: statusFilter || undefined,
       search: search.trim() || undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
-      slipStatus: slipStatusFilter || undefined,
-      result: "buy",
-      filterUserId,
     })
-      .then((res) => { setVisits(res?.data ?? []); setTotal(res?.total ?? 0); })
+      .then((res) => { setSlips(res?.data ?? []); setTotal(res?.total ?? 0); })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [search, dateFrom, dateTo, slipStatusFilter, filterUserId]);
+  }, [search, dateFrom, dateTo, statusFilter]);
 
   useEffect(() => {
     setPage(1);
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => load(1), 300);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
-  }, [search, dateFrom, dateTo, slipStatusFilter]);
+  }, [search, dateFrom, dateTo, statusFilter]);
 
   useEffect(() => { load(page); }, [page]);
 
   async function handleReject(id: string) {
     setRejectingId(id);
     try {
-      await api.approveVisit(id, "reject");
+      await api.approveSlip(id, "reject");
       load(page);
     } catch { alert("เกิดข้อผิดพลาด"); }
     finally { setRejectingId(null); }
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const pendingCount = slipStatusFilter === "pending_approval" ? total : visits.filter(v => v.slipStatus === "pending_approval").length;
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-800">จัดการสลิปการชำระเงิน</h2>
           <p className="text-sm text-gray-400 mt-0.5">
             {loading ? "กำลังโหลด..." : `${total} รายการ`}
-            {slipStatusFilter === "pending_approval" && total > 0 && (
+            {statusFilter === "pending_approval" && total > 0 && (
               <span className="ml-2 text-amber-600 font-semibold">· รออนุมัติ {total} รายการ</span>
             )}
           </p>
@@ -185,7 +179,6 @@ export default function ApprovalsPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2.5">
-        {/* Row 1: Status chips */}
         <div className="flex gap-2 flex-wrap items-center">
           {[
             { value: "pending_approval", label: "รออนุมัติ" },
@@ -194,9 +187,9 @@ export default function ApprovalsPage() {
             { value: "rejected", label: "ปฏิเสธ" },
             { value: "", label: "ทั้งหมด" },
           ].map((opt) => (
-            <button key={opt.value} onClick={() => setSlipStatusFilter(opt.value)}
+            <button key={opt.value} onClick={() => setStatusFilter(opt.value)}
               className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
-                slipStatusFilter === opt.value
+                statusFilter === opt.value
                   ? "bg-green-500 text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}>
@@ -207,7 +200,6 @@ export default function ApprovalsPage() {
 
         <div className="border-t border-gray-100" />
 
-        {/* Row 2: Search + date range */}
         <div className="flex gap-2 flex-wrap items-center">
           <div className="relative flex-1 min-w-[200px] max-w-xs">
             <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${search ? "text-green-200" : "text-gray-400"}`}
@@ -248,8 +240,8 @@ export default function ApprovalsPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-12">สลิป</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ร้านค้า</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">เซล</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">จังหวัด</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ยอด (บาท)</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">LINE</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">วันที่</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">สถานะ</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">จัดการ</th>
@@ -257,11 +249,9 @@ export default function ApprovalsPage() {
             </thead>
             <tbody>
               {loading && (
-                <tr>
-                  <td colSpan={9} className="text-center py-12 text-gray-400 text-sm">กำลังโหลด...</td>
-                </tr>
+                <tr><td colSpan={9} className="text-center py-12 text-gray-400 text-sm">กำลังโหลด...</td></tr>
               )}
-              {!loading && visits.length === 0 && (
+              {!loading && slips.length === 0 && (
                 <tr>
                   <td colSpan={9} className="text-center py-16">
                     <p className="text-2xl mb-2">✅</p>
@@ -269,38 +259,45 @@ export default function ApprovalsPage() {
                   </td>
                 </tr>
               )}
-              {!loading && visits.map((v, i) => {
-                const isPending = v.slipStatus === "pending_approval";
-                const statusKey = v.slipStatus ?? "";
+              {!loading && slips.map((s, i) => {
+                const isPending = s.slipStatus === "pending_approval";
+                const statusKey = s.slipStatus ?? "";
                 return (
-                  <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                     <td className="px-4 py-3 text-xs text-gray-400">{(page - 1) * PAGE_SIZE + i + 1}</td>
                     <td className="px-4 py-3">
-                      {v.slipUrl
-                        ? <SlipThumb url={v.slipUrl} />
-                        : <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-400">—</div>
-                      }
+                      <SlipThumb url={s.slipUrl} />
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-gray-800 text-sm">{v.shopName}</p>
-                      {v.transRef && <p className="text-xs text-gray-400 font-mono mt-0.5">Ref: {v.transRef}</p>}
+                      <p className="font-semibold text-gray-800 text-sm">{s.shopName}</p>
+                      {s.transRef && <p className="text-xs text-gray-400 font-mono mt-0.5">Ref: {s.transRef}</p>}
+                      {s.details && <p className="text-xs text-gray-400 mt-0.5 max-w-[200px] truncate">{s.details}</p>}
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-sm text-gray-700">{v.user?.fullName || "—"}</p>
-                      <p className="text-xs text-gray-400">{v.user?.email || ""}</p>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {v.district ? `${v.province} · ${v.district}` : v.province}
+                      <p className="text-sm text-gray-700">{s.user?.fullName || "—"}</p>
+                      <p className="text-xs text-gray-400">{s.user?.email || ""}</p>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span className="font-semibold text-gray-800">
-                        {v.orderAmount != null ? `฿${v.orderAmount.toLocaleString("th-TH")}` : "—"}
+                        {s.amount != null ? `฿${s.amount.toLocaleString("th-TH")}` : "—"}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      {s.lineStatus === "sent" && (
+                        <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clipRule="evenodd"/></svg>
+                          ส่งแล้ว
+                        </span>
+                      )}
+                      {s.lineStatus === "failed" && (
+                        <span className="text-xs text-red-500 font-medium">ล้มเหลว</span>
+                      )}
+                      {!s.lineStatus && <span className="text-xs text-gray-300">—</span>}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                      {new Date(v.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+                      {new Date(s.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
                       <br />
-                      {new Date(v.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(s.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_CLASS[statusKey] ?? "bg-gray-50 text-gray-500 border-gray-200"}`}>
@@ -310,13 +307,13 @@ export default function ApprovalsPage() {
                     <td className="px-4 py-3">
                       {isPending && canEdit && (
                         <div className="flex gap-1.5">
-                          <button onClick={() => setApprovingVisit(v)}
+                          <button onClick={() => setApprovingSlip(s)}
                             className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors whitespace-nowrap">
                             อนุมัติ
                           </button>
-                          <button onClick={() => handleReject(v.id)} disabled={rejectingId === v.id}
+                          <button onClick={() => handleReject(s.id)} disabled={rejectingId === s.id}
                             className="px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 whitespace-nowrap">
-                            {rejectingId === v.id ? "..." : "ปฏิเสธ"}
+                            {rejectingId === s.id ? "..." : "ปฏิเสธ"}
                           </button>
                         </div>
                       )}
@@ -328,7 +325,6 @@ export default function ApprovalsPage() {
           </table>
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
             <p className="text-xs text-gray-400">
@@ -339,9 +335,7 @@ export default function ApprovalsPage() {
                 className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40">
                 ← ก่อนหน้า
               </button>
-              <span className="px-3 py-1.5 text-xs text-gray-600 font-semibold">
-                {page} / {totalPages}
-              </span>
+              <span className="px-3 py-1.5 text-xs text-gray-600 font-semibold">{page} / {totalPages}</span>
               <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
                 className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40">
                 ถัดไป →
@@ -351,11 +345,11 @@ export default function ApprovalsPage() {
         )}
       </div>
 
-      {approvingVisit && (
+      {approvingSlip && (
         <ApproveModal
-          visit={approvingVisit}
-          onClose={() => setApprovingVisit(null)}
-          onDone={() => { setApprovingVisit(null); load(page); }}
+          slip={approvingSlip}
+          onClose={() => setApprovingSlip(null)}
+          onDone={() => { setApprovingSlip(null); load(page); }}
         />
       )}
     </div>
