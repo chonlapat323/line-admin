@@ -66,6 +66,7 @@ export const api = {
 
   getSlipSubmissions: (params: {
     status?: string; search?: string; dateFrom?: string; dateTo?: string; page?: number; limit?: number;
+    filterUserId?: string;
   } = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });
