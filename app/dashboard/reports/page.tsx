@@ -2,6 +2,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { api } from "@/lib/api";
 
+const PRINT_STYLE = `
+@media print {
+  @page { size: A4; margin: 1.2cm; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+`;
+
 interface User { id: string; fullName: string; email: string; role: string; }
 interface VisitRecord {
   id: string; shopName: string; province: string; district?: string;
@@ -141,8 +148,10 @@ export default function ReportsPage() {
 
   return (
     <div className="flex gap-4 min-h-[calc(100vh-5rem)]">
+      <style>{PRINT_STYLE}</style>
+
       {/* Left: user list */}
-      <div className="w-44 flex-shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden self-start sticky top-4">
+      <div className="w-44 flex-shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden self-start sticky top-4 print:hidden">
         <div className="px-3 py-3 border-b border-gray-100">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">รายชื่อเซล</p>
         </div>
@@ -161,8 +170,23 @@ export default function ReportsPage() {
 
       {/* Center */}
       <div className="flex-1 min-w-0 space-y-4">
+        {/* Print-only header */}
+        <div className="hidden print:block mb-6">
+          <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">BeautyUp Enterprise</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {tab === "visits" ? "รายงานประวัติการเยี่ยม" : "รายงานค่าคอมมิชชัน"}
+          </h1>
+          <p className="text-lg font-semibold text-gray-700 mt-0.5">{selectedUser?.fullName ?? ""}</p>
+          <p className="text-sm text-gray-500 mt-1">
+            พิมพ์เมื่อ {new Date().toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
+            {dateFrom ? ` · ตั้งแต่ ${new Date(dateFrom).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+            {dateTo ? ` ถึง ${new Date(dateTo).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+            {!dateFrom && !dateTo ? " · ทุกช่วงเวลา" : ""}
+          </p>
+        </div>
+
         {/* Header + tabs */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
           <div>
             <h2 className="text-xl font-bold text-gray-800">
               {selectedUser ? selectedUser.fullName : "รายงานรายบุคคล"}
@@ -173,15 +197,26 @@ export default function ReportsPage() {
               </p>
             )}
           </div>
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-            {([["visits", "ประวัติการเยี่ยม"], ["commissions", "รายงานค่าคอม"]] as const).map(([key, label]) => (
-              <button key={key} onClick={() => { setTab(key); resetFilters(); }}
-                className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                  tab === key ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"
-                }`}>
-                {label}
+          <div className="flex items-center gap-3">
+            {selectedUserId && (
+              <button onClick={() => window.print()}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-xl transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                พิมพ์ A4
               </button>
-            ))}
+            )}
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+              {([["visits", "ประวัติการเยี่ยม"], ["commissions", "รายงานค่าคอม"]] as const).map(([key, label]) => (
+                <button key={key} onClick={() => { setTab(key); resetFilters(); }}
+                  className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${
+                    tab === key ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -313,10 +348,41 @@ export default function ReportsPage() {
             </table>
           </div>
         </div>
+
+        {/* Print-only summary */}
+        {tab === "visits" && filteredVisits.length > 0 && (
+          <div className="hidden print:block mt-6 pt-4 border-t-2 border-gray-300">
+            <p className="text-sm font-semibold text-gray-500 mb-3">สรุป</p>
+            <div className="flex gap-10">
+              <div><p className="text-xs text-gray-500">ยอดเยี่ยมทั้งหมด</p><p className="text-2xl font-bold">{filteredVisits.length} ครั้ง</p></div>
+              <div><p className="text-xs text-gray-500">ซื้อ</p><p className="text-2xl font-bold text-green-700">{visitBuyCount}</p></div>
+              <div><p className="text-xs text-gray-500">ไม่ซื้อ</p><p className="text-2xl font-bold text-red-500">{visitNoBuyCount}</p></div>
+              <div><p className="text-xs text-gray-500">ยอดขายรวม (บาท)</p><p className="text-2xl font-bold">{visitTotalAmt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p></div>
+            </div>
+          </div>
+        )}
+        {tab === "commissions" && filteredSlips.length > 0 && (
+          <div className="hidden print:block mt-6 pt-4 border-t-2 border-gray-300">
+            <p className="text-sm font-semibold text-gray-500 mb-3">สรุปค่าคอม</p>
+            <div className="flex gap-10 flex-wrap">
+              <div><p className="text-xs text-gray-500">ยอดสลิปรวม (บาท)</p><p className="text-2xl font-bold">{slipTotal.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p></div>
+              {tiers.length > 0
+                ? tierBreakdown.filter((t) => t.commission > 0).map((t, i) => (
+                  <div key={i}><p className="text-xs text-gray-500">คอม {t.rate}%</p><p className="text-2xl font-bold">{t.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p></div>
+                ))
+                : flatRate > 0 && <div><p className="text-xs text-gray-500">คอม {flatRate}%</p><p className="text-2xl font-bold">{flatComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p></div>
+              }
+              <div className="border-l border-gray-300 pl-10">
+                <p className="text-xs text-gray-500">รวมค่าคอม (บาท)</p>
+                <p className="text-2xl font-bold text-green-700">{(tiers.length > 0 ? commAmount : flatComm).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right: filters + summary */}
-      <div className="w-56 flex-shrink-0 space-y-3 self-start sticky top-4">
+      <div className="w-56 flex-shrink-0 space-y-3 self-start sticky top-4 print:hidden">
         <div className="bg-pink-50 rounded-2xl border border-pink-100 p-4 space-y-4">
           <p className="font-semibold text-gray-700">ระบบค้นหา</p>
 
