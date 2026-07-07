@@ -22,7 +22,7 @@ type StoredUser = {
 const navItems = [
   { href: "/dashboard", label: "ภาพรวม", icon: "📊", menu: "dashboard", exact: true },
   { href: "/dashboard/sales", label: "สถิติเซล", icon: "📈", menu: "sales" },
-  { href: "/dashboard/visits", label: "ประวัติการเยี่ยม", icon: "🗂️", menu: "visits" },
+  { href: "/dashboard/visits", label: "ประวัติการออกทริป", icon: "🗂️", menu: "visits" },
   { href: "/dashboard/approvals", label: "จัดการสลิป", icon: "🧾", menu: "approvals" },
   { href: "/dashboard/commissions", label: "ค่าคอมมิชชัน", icon: "💰", menu: "commissions" },
   { href: "/dashboard/reports/trips", label: "รายงานออกทริป", icon: "📋", menu: "reports" },

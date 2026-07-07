@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/toast";
 const MENUS = [
   { menu: "dashboard", label: "ภาพรวม" },
   { menu: "sales", label: "สถิติเซล" },
-  { menu: "visits", label: "ประวัติการเยี่ยม" },
+  { menu: "visits", label: "ประวัติการออกทริป" },
   { menu: "approvals", label: "จัดการสลิป" },
   { menu: "commissions", label: "ค่าคอมมิชชัน" },
   { menu: "users", label: "จัดการ Users" },

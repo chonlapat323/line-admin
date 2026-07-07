@@ -221,7 +221,7 @@ function VisitList({ visits, total }: { visits: VisitRecord[]; total: number }) 
   return (
     <div className="border-t border-gray-100">
       <div className="px-5 py-3 bg-gray-50 flex items-center justify-between">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">ประวัติการเยี่ยม ({total} รายการ)</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">ประวัติการออกทริป ({total} รายการ)</p>
         {total > VISIT_LIST_LIMIT && (
           <p className="text-xs text-gray-400">แสดง {VISIT_LIST_LIMIT} ล่าสุด</p>
         )}

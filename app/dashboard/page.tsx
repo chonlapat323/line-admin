@@ -177,7 +177,7 @@ export default function DashboardPage() {
 
   const visitStatCards = [
     {
-      label: "เยี่ยมร้านทั้งหมด",
+      label: "ออกทริปทั้งหมด",
       value: filteredVisits.length,
       sub: `จากทั้งหมด ${visits.length} รายการ`,
       color: "text-green-600",
@@ -303,7 +303,7 @@ export default function DashboardPage() {
 
       {/* Visit stat cards */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">การเยี่ยมร้าน</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">การออกทริป</p>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {visitStatCards.map((card) => (
             <div key={card.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -435,7 +435,7 @@ export default function DashboardPage() {
       {!loading && chartData.length > 1 && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <p className="text-sm font-semibold text-gray-700 mb-4">
-            {period === "today" ? "เยี่ยมรายชั่วโมง" : "แนวโน้มการเยี่ยม"}
+            {period === "today" ? "ออกทริปรายชั่วโมง" : "แนวโน้มการออกทริป"}
           </p>
           <ResponsiveContainer width="100%" height={200}>
             <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
@@ -447,7 +447,7 @@ export default function DashboardPage() {
               <Tooltip
                 formatter={(value, name) =>
                   name === "visits"
-                    ? [`${value} ครั้ง`, "เยี่ยมร้าน"]
+                    ? [`${value} ครั้ง`, "ออกทริป"]
                     : [`฿${Number(value).toLocaleString("th-TH")}`, "ยอดซื้อ"]
                 }
                 contentStyle={{ borderRadius: "12px", border: "1px solid #f3f4f6", fontSize: "12px" }}
@@ -485,7 +485,7 @@ export default function DashboardPage() {
 
       {/* Recent visits */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">การเยี่ยมร้านล่าสุด</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">การออกทริปล่าสุด</h3>
         <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -510,7 +510,7 @@ export default function DashboardPage() {
               {!loading && recentVisits.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-5 py-8 text-center text-sm text-gray-400">
-                    ไม่มีการเยี่ยมร้านในช่วงเวลานี้
+                    ไม่มีการออกทริปในช่วงเวลานี้
                   </td>
                 </tr>
               )}

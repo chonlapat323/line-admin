@@ -184,7 +184,7 @@ export default function VisitsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">ประวัติการเยี่ยมร้าน</h2>
+          <h2 className="text-xl font-bold text-gray-800">ประวัติการออกทริป</h2>
           <p className="text-sm text-gray-400 mt-0.5">{pageData.total} รายการ{Object.values({ provinceFilter, resultFilter, tripFilter, visitTypeFilter, customerFilter, search: debouncedSearch }).some(Boolean) || period !== "all" ? " (กรอง)" : "ทั้งหมด"}</p>
         </div>
         <button
@@ -357,7 +357,7 @@ export default function VisitsPage() {
       {showMap && (
         <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
           <div className="bg-white px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-700">แผนที่การเยี่ยม</span>
+            <span className="text-sm font-semibold text-gray-700">แผนที่การออกทริป</span>
             <div className="flex items-center gap-4 text-xs text-gray-500">
               <span className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded-sm inline-block" style={{ background: "rgba(22,101,52,0.85)" }} />เยี่ยมมาก
@@ -408,7 +408,7 @@ export default function VisitsPage() {
                     <svg className="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-3-3v6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
                     </svg>
-                    <p className="text-sm font-medium">ไม่พบข้อมูลการเยี่ยม</p>
+                    <p className="text-sm font-medium">ไม่พบข้อมูลการออกทริป</p>
                     <p className="text-xs mt-1">ลองเปลี่ยน filter หรือช่วงเวลา</p>
                   </div>
                 </td>

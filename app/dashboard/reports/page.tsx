@@ -202,7 +202,7 @@ export default function ReportsPage() {
               </button>
             )}
             <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-              {([["visits", "ประวัติการเยี่ยม"], ["commissions", "รายงานค่าคอม"]] as const).map(([key, label]) => (
+              {([["visits", "ประวัติการออกทริป"], ["commissions", "รายงานค่าคอม"]] as const).map(([key, label]) => (
                 <button key={key} onClick={() => { setTab(key); resetFilters(); }}
                   className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${
                     tab === key ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"
@@ -349,7 +349,7 @@ export default function ReportsPage() {
           <div className="hidden print:block mt-6 pt-4 border-t-2 border-gray-300">
             <p className="text-sm font-semibold text-gray-500 mb-3">สรุป</p>
             <div className="flex gap-10">
-              <div><p className="text-xs text-gray-500">ยอดเยี่ยมทั้งหมด</p><p className="text-2xl font-bold">{filteredVisits.length} ครั้ง</p></div>
+              <div><p className="text-xs text-gray-500">ออกทริปทั้งหมด</p><p className="text-2xl font-bold">{filteredVisits.length} ครั้ง</p></div>
               <div><p className="text-xs text-gray-500">ซื้อ</p><p className="text-2xl font-bold text-gray-800">{visitBuyCount}</p></div>
               <div><p className="text-xs text-gray-500">ไม่ซื้อ</p><p className="text-2xl font-bold text-gray-800">{visitNoBuyCount}</p></div>
               <div><p className="text-xs text-gray-500">ยอดขายรวม (บาท)</p><p className="text-2xl font-bold">{visitTotalAmt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p></div>
@@ -409,7 +409,7 @@ export default function ReportsPage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 block mb-1.5">ผลการเยี่ยม</label>
+                <label className="text-xs font-semibold text-gray-500 block mb-1.5">ผลการออกทริป</label>
                 <select value={result} onChange={(e) => setResult(e.target.value)}
                   className="w-full text-sm border border-pink-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400">
                   <option value="">ทั้งหมด</option>
@@ -442,7 +442,7 @@ export default function ReportsPage() {
             {tab === "visits" && (
               <>
                 <div>
-                  <p className="text-xs text-gray-500">ยอดเยี่ยมทั้งหมด</p>
+                  <p className="text-xs text-gray-500">ออกทริปทั้งหมด</p>
                   <p className="text-2xl font-bold text-gray-800">{filteredVisits.length} <span className="text-sm font-normal text-gray-500">ครั้ง</span></p>
                 </div>
                 <div className="flex gap-3">
