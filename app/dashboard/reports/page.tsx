@@ -323,9 +323,9 @@ export default function ReportsPage() {
           {/* Date range */}
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1.5">ช่วงวันที่</label>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+            <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); if (dateTo && e.target.value > dateTo) setDateTo(""); }}
               className="w-full text-sm border border-pink-200 rounded-lg px-2 py-1.5 mb-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400" />
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+            <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)}
               className="w-full text-sm border border-pink-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400" />
           </div>
 
