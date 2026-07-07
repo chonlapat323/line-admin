@@ -178,15 +178,8 @@ export default function ReportsPage() {
       <div className="flex-1 min-w-0 space-y-4">
         {/* Print header */}
         <div className="hidden print:block mb-4">
-          <h2 className="text-lg font-bold text-gray-900">
-            {tab === "visits" ? "รายงานประวัติการเยี่ยม" : "รายงานค่าคอมมิชชัน"} — {selectedUser?.fullName ?? ""}
-          </h2>
-          <p className="text-sm text-gray-600">
-            พิมพ์เมื่อ {new Date().toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
-            {dateFrom ? ` · ตั้งแต่ ${new Date(dateFrom).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}` : ""}
-            {dateTo ? ` ถึง ${new Date(dateTo).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}` : ""}
-            {!dateFrom && !dateTo ? " · ทุกช่วงเวลา" : ""}
-          </p>
+          <h2 className="text-lg font-bold text-gray-900">{selectedUser?.fullName ?? ""}</h2>
+          <p className="text-sm text-gray-500">{new Date().toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}</p>
         </div>
 
         {/* Header + tabs */}
@@ -229,38 +222,62 @@ export default function ReportsPage() {
               {tab === "visits" && (
                 <>
                   <colgroup>
-                    <col className="w-10" />
+                    <col style={{ width: "2.5rem" }} />
                     <col />
-                    <col className="w-36" />
+                    <col style={{ width: "7rem" }} />
+                    <col style={{ width: "5rem" }} />
+                    <col style={{ width: "4.5rem" }} />
+                    <col style={{ width: "7rem" }} />
+                    <col style={{ width: "7rem" }} />
                   </colgroup>
                   <thead>
                     <tr className="border-b border-gray-100 bg-blue-600">
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">#</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">ชื่อร้าน</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">จังหวัด</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">ลูกค้า</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">ผล</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-white">ยอด (บาท)</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">วันที่</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {!selectedUserId && <tr><td colSpan={3} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
-                    {selectedUserId && loading && <tr><td colSpan={3} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
-                    {selectedUserId && !loading && filteredVisits.length === 0 && <tr><td colSpan={3} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
-                    {!loading && filteredVisits.map((v, i) => (
-                      <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                        <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}.</td>
-                        <td className="px-4 py-3 font-medium text-gray-800">
-                          {v.shopName}
-                          {v.district && <span className="text-xs text-gray-400 block">{v.district}</span>}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                          {new Date(v.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
-                        </td>
-                      </tr>
-                    ))}
+                    {!selectedUserId && <tr><td colSpan={7} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
+                    {selectedUserId && loading && <tr><td colSpan={7} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
+                    {selectedUserId && !loading && filteredVisits.length === 0 && <tr><td colSpan={7} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
+                    {!loading && filteredVisits.map((v, i) => {
+                      const r = RESULT_LABEL[v.result ?? ""] ?? { label: v.result ?? "—", color: "bg-gray-100 text-gray-500" };
+                      return (
+                        <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                          <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}.</td>
+                          <td className="px-4 py-3 font-medium text-gray-800">
+                            {v.shopName}
+                            {v.district && <span className="text-xs text-gray-400 block">{v.district}</span>}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{v.province}</td>
+                          <td className="px-4 py-3 text-sm text-gray-800">
+                            {v.customerType === "new" || v.customerType === "ใหม่" ? "ใหม่" : "เก่า"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-800">
+                            {r.label}
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-gray-800 tabular-nums">
+                            {v.orderAmount ? v.orderAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 }) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                            {new Date(v.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   {!loading && filteredVisits.length > 0 && (
                     <tfoot>
                       <tr className="border-t-2 border-gray-200 bg-gray-50">
-                        <td colSpan={3} className="px-4 py-3 text-xs font-semibold text-gray-500">{filteredVisits.length} รายการ</td>
+                        <td colSpan={6} className="px-4 py-3 text-xs font-semibold text-gray-500">{filteredVisits.length} รายการ</td>
+                        <td className="px-4 py-3 text-right font-bold text-gray-800 tabular-nums">
+                          {visitTotalAmt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                        </td>
                       </tr>
                     </tfoot>
                   )}
