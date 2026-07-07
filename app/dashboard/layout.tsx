@@ -25,6 +25,7 @@ const navItems = [
   { href: "/dashboard/visits", label: "ประวัติการเยี่ยม", icon: "🗂️", menu: "visits" },
   { href: "/dashboard/approvals", label: "จัดการสลิป", icon: "🧾", menu: "approvals" },
   { href: "/dashboard/commissions", label: "ค่าคอมมิชชัน", icon: "💰", menu: "commissions" },
+  { href: "/dashboard/reports", label: "รายงานรายบุคคล", icon: "📋", menu: "reports" },
   { href: "/dashboard/users", label: "จัดการ Users", icon: "👥", menu: "users" },
   { href: "/dashboard/roles", label: "จัดการสิทธิ์", icon: "🔐", menu: "roles" },
   { href: "/dashboard/settings", label: "ตั้งค่า", icon: "⚙️", menu: "settings" },
