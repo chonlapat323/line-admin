@@ -9,6 +9,8 @@ interface UserSummary {
   user: { fullName: string; email: string; bankName?: string; bankAccount?: string };
   visitCount: number;
   totalAmount: number;
+  adjustment?: number;
+  adjustedTotal?: number;
   reachedThreshold: boolean;
   commission: number;
   pendingCount: number;
@@ -241,6 +243,74 @@ function PayModal({ row, month, onClose, onDone }: {
             <button onClick={handlePay} disabled={saving}
               className="flex-1 py-2.5 text-sm bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl disabled:opacity-60">
               {saving ? "กำลังบันทึก..." : "✓ บันทึกการจ่าย"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Adjust Modal ────────────────────────────────────────────────────────────
+function AdjustModal({ row, month, onClose, onDone }: {
+  row: UserSummary; month: string; onClose: () => void; onDone: () => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const nextMonth = (() => {
+    const [y, m] = month.split("-").map(Number);
+    const d = new Date(y, m, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  })();
+
+  async function handleSave() {
+    const num = parseFloat(amount);
+    if (isNaN(num) || num === 0) { setError("กรุณาใส่ยอดที่ถูกต้อง"); return; }
+    setSaving(true); setError("");
+    try {
+      await api.createCommissionAdjustment({ userId: row.userId, month, amount: num, note: note || undefined });
+      onDone();
+    } catch { setError("เกิดข้อผิดพลาด กรุณาลองใหม่"); }
+    finally { setSaving(false); }
+  }
+
+  const num = parseFloat(amount) || 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h3 className="font-bold text-gray-800">ช่วยยอดขาย</h3>
+          <p className="text-xs text-gray-400 mt-0.5">{row.user.fullName} · เดือน {month}</p>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">ยอดที่ช่วย (บาท)</label>
+            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+              placeholder="เช่น 50000"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+          </div>
+          {num !== 0 && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700 space-y-1">
+              <p>เดือน {month}: ยอดขายเพิ่ม <span className="font-bold">+฿{Math.abs(num).toLocaleString("th-TH")}</span></p>
+              <p>เดือน {nextMonth}: หักอัตโนมัติ <span className="font-bold">-฿{Math.abs(num).toLocaleString("th-TH")}</span></p>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">หมายเหตุ</label>
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="เช่น ช่วยยอดเพื่อถึงเป้า"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex gap-2">
+            <button onClick={onClose} className="flex-1 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">ยกเลิก</button>
+            <button onClick={handleSave} disabled={saving}
+              className="flex-1 py-2.5 text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl disabled:opacity-60">
+              {saving ? "กำลังบันทึก..." : "บันทึก"}
             </button>
           </div>
         </div>
@@ -502,6 +572,7 @@ export default function CommissionsPage() {
 
   const router = useRouter();
   const [payingRow, setPayingRow] = useState<UserSummary | null>(null);
+  const [adjustingRow, setAdjustingRow] = useState<UserSummary | null>(null);
   const [canEdit, setCanEdit] = useState(false);
 
   useEffect(() => {
@@ -699,7 +770,20 @@ export default function CommissionsPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right font-medium text-gray-700">{row.visitCount}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-gray-800">฿{row.totalAmount.toLocaleString("th-TH")}</td>
+                        <td className="px-4 py-3 text-right">
+                          <p className="font-semibold text-gray-800">฿{(row.adjustedTotal ?? row.totalAmount).toLocaleString("th-TH")}</p>
+                          {(row.adjustment ?? 0) !== 0 && (
+                            <p className="text-xs text-blue-500 mt-0.5">
+                              {(row.adjustment ?? 0) > 0 ? "+" : ""}฿{(row.adjustment ?? 0).toLocaleString("th-TH")} ช่วย
+                            </p>
+                          )}
+                          {canEdit && (
+                            <button onClick={(e) => { e.stopPropagation(); setAdjustingRow(row); }}
+                              className="text-xs text-blue-400 hover:text-blue-600 mt-0.5 underline">
+                              ช่วยยอด
+                            </button>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-center">
                           {row.reachedThreshold ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">✓ ถึงเป้า</span>
@@ -763,6 +847,12 @@ export default function CommissionsPage() {
           row={payingRow} month={month}
           onClose={() => setPayingRow(null)}
           onDone={() => { setPayingRow(null); load(month); }} />
+      )}
+      {adjustingRow && (
+        <AdjustModal
+          row={adjustingRow} month={month}
+          onClose={() => setAdjustingRow(null)}
+          onDone={() => { setAdjustingRow(null); load(month); }} />
       )}
     </div>
   );

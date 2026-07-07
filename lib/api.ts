@@ -86,6 +86,12 @@ export const api = {
   getCommissionSummary: (month: string) =>
     request(`/visits/commission-summary?month=${month}`),
 
+  createCommissionAdjustment: (data: { userId: string; month: string; amount: number; note?: string }) =>
+    request("/commission-adjustments", { method: "POST", body: JSON.stringify(data) }),
+
+  getCommissionAdjustments: (month: string) =>
+    request(`/commission-adjustments?month=${month}`),
+
   getCommissionBreakdown: (userId: string, month: string) =>
     request(`/visits/commission-breakdown?userId=${userId}&month=${month}`),
 
