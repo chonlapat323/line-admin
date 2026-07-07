@@ -33,8 +33,7 @@ const navItems = [
 
 function canViewMenu(user: StoredUser | null, menu: string): boolean {
   if (!user) return false;
-  // Legacy admin with no permissions array → full access
-  if (user.role === "admin" && !user.permissions?.length) return true;
+  if (user.role === "admin") return true;
   return user.permissions?.find((p) => p.menu === menu)?.canView ?? false;
 }
 
