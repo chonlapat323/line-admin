@@ -7,6 +7,13 @@ const PRINT_STYLE = `
   @page { size: A4; margin: 1.2cm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body.print-table-only .print-full-header { display: none !important; }
+  body.print-table-only table thead tr { background: none !important; }
+  body.print-table-only table thead th { color: #000 !important; border-bottom: 2px solid #000 !important; }
+  body.print-table-only table tbody tr { background: none !important; }
+  body.print-table-only table tbody td { color: #000 !important; }
+  body.print-table-only table tfoot tr { background: none !important; border-top: 2px solid #000 !important; }
+  body.print-table-only table tfoot td { color: #000 !important; }
+  body.print-table-only span[class*="rounded-full"] { background: none !important; color: #000 !important; border: 1px solid #000; }
 }
 `;
 
