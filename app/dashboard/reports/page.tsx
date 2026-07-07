@@ -233,16 +233,14 @@ export default function ReportsPage() {
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">#</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">ชื่อร้าน</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">จังหวัด</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">ลูกค้า</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">ผล</th>
                       <th className="text-right px-4 py-3 text-xs font-semibold text-white">ยอด (บาท)</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">วันที่</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {!selectedUserId && <tr><td colSpan={7} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
-                    {selectedUserId && loading && <tr><td colSpan={7} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
-                    {selectedUserId && !loading && filteredVisits.length === 0 && <tr><td colSpan={7} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
+                    {!selectedUserId && <tr><td colSpan={5} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
+                    {selectedUserId && loading && <tr><td colSpan={5} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
+                    {selectedUserId && !loading && filteredVisits.length === 0 && <tr><td colSpan={5} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
                     {!loading && filteredVisits.map((v, i) => {
                       const r = RESULT_LABEL[v.result ?? ""] ?? { label: v.result ?? "—", color: "bg-gray-100 text-gray-500" };
                       return (
@@ -253,19 +251,6 @@ export default function ReportsPage() {
                             {v.district && <span className="text-xs text-gray-400 block">{v.district}</span>}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">{v.province}</td>
-                          <td className="px-4 py-3">
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                              v.customerType === "new" || v.customerType === "ใหม่"
-                                ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-600"
-                            }`}>
-                              {v.customerType === "new" || v.customerType === "ใหม่" ? "ใหม่" : "เก่า"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            {v.result ? (
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.color}`}>{r.label}</span>
-                            ) : <span className="text-gray-300 text-xs">—</span>}
-                          </td>
                           <td className="px-4 py-3 text-right font-semibold text-gray-800 tabular-nums">
                             {v.orderAmount ? v.orderAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 }) : "—"}
                           </td>
@@ -305,9 +290,9 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {!selectedUserId && <tr><td colSpan={7} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
-                    {selectedUserId && loading && <tr><td colSpan={7} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
-                    {selectedUserId && !loading && filteredSlips.length === 0 && <tr><td colSpan={7} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
+                    {!selectedUserId && <tr><td colSpan={5} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
+                    {selectedUserId && loading && <tr><td colSpan={5} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
+                    {selectedUserId && !loading && filteredSlips.length === 0 && <tr><td colSpan={5} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
                     {!loading && filteredSlips.map((s, i) => {
                       const st = SLIP_STATUS[s.slipStatus] ?? { label: s.slipStatus, color: "bg-gray-100 text-gray-500" };
                       return (
@@ -356,8 +341,8 @@ export default function ReportsPage() {
             <p className="text-sm font-semibold text-gray-500 mb-3">สรุป</p>
             <div className="flex gap-10">
               <div><p className="text-xs text-gray-500">ยอดเยี่ยมทั้งหมด</p><p className="text-2xl font-bold">{filteredVisits.length} ครั้ง</p></div>
-              <div><p className="text-xs text-gray-500">ซื้อ</p><p className="text-2xl font-bold text-green-700">{visitBuyCount}</p></div>
-              <div><p className="text-xs text-gray-500">ไม่ซื้อ</p><p className="text-2xl font-bold text-red-500">{visitNoBuyCount}</p></div>
+              <div><p className="text-xs text-gray-500">ซื้อ</p><p className="text-2xl font-bold text-gray-800">{visitBuyCount}</p></div>
+              <div><p className="text-xs text-gray-500">ไม่ซื้อ</p><p className="text-2xl font-bold text-gray-800">{visitNoBuyCount}</p></div>
               <div><p className="text-xs text-gray-500">ยอดขายรวม (บาท)</p><p className="text-2xl font-bold">{visitTotalAmt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p></div>
             </div>
           </div>
@@ -454,11 +439,11 @@ export default function ReportsPage() {
                 <div className="flex gap-3">
                   <div>
                     <p className="text-xs text-gray-500">ซื้อ</p>
-                    <p className="text-lg font-bold text-green-700">{visitBuyCount}</p>
+                    <p className="text-lg font-bold text-gray-800">{visitBuyCount}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">ไม่ซื้อ</p>
-                    <p className="text-lg font-bold text-red-500">{visitNoBuyCount}</p>
+                    <p className="text-lg font-bold text-gray-800">{visitNoBuyCount}</p>
                   </div>
                 </div>
                 <div>
