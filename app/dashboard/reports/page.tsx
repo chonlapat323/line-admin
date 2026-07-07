@@ -5,16 +5,13 @@ import { api } from "@/lib/api";
 const PRINT_STYLE = `
 @media print {
   @page { size: A4; margin: 1.2cm; }
-  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.print-table-only .print-full-header { display: none !important; }
-  body.print-table-only .print-table-header { display: block !important; }
-  body.print-table-only table thead tr { background: none !important; }
-  body.print-table-only table thead th { color: #000 !important; border-bottom: 2px solid #000 !important; }
-  body.print-table-only table tbody tr { background: none !important; }
-  body.print-table-only table tbody td { color: #000 !important; }
-  body.print-table-only table tfoot tr { background: none !important; border-top: 2px solid #000 !important; }
-  body.print-table-only table tfoot td { color: #000 !important; }
-  body.print-table-only span[class*="rounded-full"] { background: none !important; color: #000 !important; border: 1px solid #000; }
+  table thead tr { background: none !important; }
+  table thead th { color: #000 !important; border-bottom: 2px solid #000 !important; }
+  table tbody tr { background: none !important; }
+  table tbody td { color: #000 !important; }
+  table tfoot tr { background: none !important; border-top: 2px solid #000 !important; }
+  table tfoot td { color: #000 !important; }
+  span[class*="rounded-full"] { background: none !important; color: #000 !important; border: 1px solid #000; }
 }
 `;
 
@@ -179,27 +176,12 @@ export default function ReportsPage() {
 
       {/* Center */}
       <div className="flex-1 min-w-0 space-y-4">
-        {/* Table-only print header */}
-        <div className="hidden mb-4 print-table-header">
+        {/* Print header */}
+        <div className="hidden print:block mb-4">
           <h2 className="text-lg font-bold text-gray-900">
             {tab === "visits" ? "รายงานประวัติการเยี่ยม" : "รายงานค่าคอมมิชชัน"} — {selectedUser?.fullName ?? ""}
           </h2>
           <p className="text-sm text-gray-600">
-            พิมพ์เมื่อ {new Date().toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
-            {dateFrom ? ` · ตั้งแต่ ${new Date(dateFrom).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}` : ""}
-            {dateTo ? ` ถึง ${new Date(dateTo).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}` : ""}
-            {!dateFrom && !dateTo ? " · ทุกช่วงเวลา" : ""}
-          </p>
-        </div>
-
-        {/* Print-only header */}
-        <div className="hidden print:block mb-6 print-full-header">
-          <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">BeautyUp Enterprise</p>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {tab === "visits" ? "รายงานประวัติการเยี่ยม" : "รายงานค่าคอมมิชชัน"}
-          </h1>
-          <p className="text-lg font-semibold text-gray-700 mt-0.5">{selectedUser?.fullName ?? ""}</p>
-          <p className="text-sm text-gray-500 mt-1">
             พิมพ์เมื่อ {new Date().toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
             {dateFrom ? ` · ตั้งแต่ ${new Date(dateFrom).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}` : ""}
             {dateTo ? ` ถึง ${new Date(dateTo).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}` : ""}
@@ -221,20 +203,10 @@ export default function ReportsPage() {
           </div>
           <div className="flex items-center gap-3">
             {selectedUserId && (
-              <div className="flex gap-2">
-                <button onClick={() => window.print()}
-                  className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-xl transition-colors">
-                  พิมพ์ A4
-                </button>
-                <button onClick={() => {
-                  document.body.classList.add("print-table-only");
-                  window.print();
-                  document.body.classList.remove("print-table-only");
-                }}
-                  className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors">
-                  เฉพาะตาราง
-                </button>
-              </div>
+              <button onClick={() => window.print()}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-xl transition-colors">
+                พิมพ์
+              </button>
             )}
             <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
               {([["visits", "ประวัติการเยี่ยม"], ["commissions", "รายงานค่าคอม"]] as const).map(([key, label]) => (
