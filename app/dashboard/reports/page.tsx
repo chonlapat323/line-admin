@@ -233,14 +233,16 @@ export default function ReportsPage() {
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">#</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">ชื่อร้าน</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">จังหวัด</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">ลูกค้า</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">ผล</th>
                       <th className="text-right px-4 py-3 text-xs font-semibold text-white">ยอด (บาท)</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">วันที่</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {!selectedUserId && <tr><td colSpan={5} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
-                    {selectedUserId && loading && <tr><td colSpan={5} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
-                    {selectedUserId && !loading && filteredVisits.length === 0 && <tr><td colSpan={5} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
+                    {!selectedUserId && <tr><td colSpan={7} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
+                    {selectedUserId && loading && <tr><td colSpan={7} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
+                    {selectedUserId && !loading && filteredVisits.length === 0 && <tr><td colSpan={7} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
                     {!loading && filteredVisits.map((v, i) => {
                       const r = RESULT_LABEL[v.result ?? ""] ?? { label: v.result ?? "—", color: "bg-gray-100 text-gray-500" };
                       return (
@@ -251,6 +253,12 @@ export default function ReportsPage() {
                             {v.district && <span className="text-xs text-gray-400 block">{v.district}</span>}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">{v.province}</td>
+                          <td className="px-4 py-3 text-sm text-gray-800">
+                            {v.customerType === "new" || v.customerType === "ใหม่" ? "ใหม่" : "เก่า"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-800">
+                            {RESULT_LABEL[v.result ?? ""]?.label ?? v.result ?? "—"}
+                          </td>
                           <td className="px-4 py-3 text-right font-semibold text-gray-800 tabular-nums">
                             {v.orderAmount ? v.orderAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 }) : "—"}
                           </td>
@@ -264,7 +272,7 @@ export default function ReportsPage() {
                   {!loading && filteredVisits.length > 0 && (
                     <tfoot>
                       <tr className="border-t-2 border-gray-200 bg-gray-50">
-                        <td colSpan={5} className="px-4 py-3 text-xs font-semibold text-gray-500">{filteredVisits.length} รายการ</td>
+                        <td colSpan={7} className="px-4 py-3 text-xs font-semibold text-gray-500">{filteredVisits.length} รายการ</td>
                         <td className="px-4 py-3 text-right font-bold text-gray-800 tabular-nums">
                           {visitTotalAmt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                         </td>
@@ -290,9 +298,9 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {!selectedUserId && <tr><td colSpan={5} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
-                    {selectedUserId && loading && <tr><td colSpan={5} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
-                    {selectedUserId && !loading && filteredSlips.length === 0 && <tr><td colSpan={5} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
+                    {!selectedUserId && <tr><td colSpan={7} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
+                    {selectedUserId && loading && <tr><td colSpan={7} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
+                    {selectedUserId && !loading && filteredSlips.length === 0 && <tr><td colSpan={7} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
                     {!loading && filteredSlips.map((s, i) => {
                       const st = SLIP_STATUS[s.slipStatus] ?? { label: s.slipStatus, color: "bg-gray-100 text-gray-500" };
                       return (
