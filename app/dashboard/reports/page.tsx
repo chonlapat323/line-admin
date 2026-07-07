@@ -7,6 +7,7 @@ const PRINT_STYLE = `
   @page { size: A4; margin: 1.2cm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body.print-table-only .print-full-header { display: none !important; }
+  body.print-table-only .print-table-header { display: block !important; }
   body.print-table-only table thead tr { background: none !important; }
   body.print-table-only table thead th { color: #000 !important; border-bottom: 2px solid #000 !important; }
   body.print-table-only table tbody tr { background: none !important; }
@@ -178,6 +179,19 @@ export default function ReportsPage() {
 
       {/* Center */}
       <div className="flex-1 min-w-0 space-y-4">
+        {/* Table-only print header */}
+        <div className="hidden mb-4 print-table-header">
+          <h2 className="text-lg font-bold text-gray-900">
+            {tab === "visits" ? "รายงานประวัติการเยี่ยม" : "รายงานค่าคอมมิชชัน"} — {selectedUser?.fullName ?? ""}
+          </h2>
+          <p className="text-sm text-gray-600">
+            พิมพ์เมื่อ {new Date().toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
+            {dateFrom ? ` · ตั้งแต่ ${new Date(dateFrom).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+            {dateTo ? ` ถึง ${new Date(dateTo).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+            {!dateFrom && !dateTo ? " · ทุกช่วงเวลา" : ""}
+          </p>
+        </div>
+
         {/* Print-only header */}
         <div className="hidden print:block mb-6 print-full-header">
           <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">BeautyUp Enterprise</p>
