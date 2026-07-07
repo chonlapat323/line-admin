@@ -71,7 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen bg-gray-100">
       {/* Sidebar */}
-      <aside className="w-60 bg-gray-900 text-white flex flex-col fixed h-full z-10">
+      <aside className="w-60 bg-gray-900 text-white flex flex-col fixed h-full z-10 print:hidden">
         <div className="px-6 py-5 border-b border-gray-700">
           <h1 className="text-base font-bold text-white">BeautyUp SALES</h1>
           <p className="text-xs text-gray-400 mt-0.5">Admin Panel</p>
@@ -115,7 +115,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 ml-60 p-8 min-h-screen">
+      <main className="flex-1 ml-60 p-8 min-h-screen print:ml-0 print:p-0">
         {children}
       </main>
     </div>

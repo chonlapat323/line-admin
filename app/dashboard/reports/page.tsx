@@ -6,6 +6,7 @@ const PRINT_STYLE = `
 @media print {
   @page { size: A4; margin: 1.2cm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.print-table-only .print-full-header { display: none !important; }
 }
 `;
 
@@ -171,7 +172,7 @@ export default function ReportsPage() {
       {/* Center */}
       <div className="flex-1 min-w-0 space-y-4">
         {/* Print-only header */}
-        <div className="hidden print:block mb-6">
+        <div className="hidden print:block mb-6 print-full-header">
           <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">BeautyUp Enterprise</p>
           <h1 className="text-2xl font-bold text-gray-900">
             {tab === "visits" ? "รายงานประวัติการเยี่ยม" : "รายงานค่าคอมมิชชัน"}
@@ -199,13 +200,26 @@ export default function ReportsPage() {
           </div>
           <div className="flex items-center gap-3">
             {selectedUserId && (
-              <button onClick={() => window.print()}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-xl transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-                พิมพ์ A4
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => window.print()}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-xl transition-colors">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  พิมพ์ A4
+                </button>
+                <button onClick={() => {
+                  document.body.classList.add("print-table-only");
+                  window.print();
+                  document.body.classList.remove("print-table-only");
+                }}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18M3 6h18M3 18h18" />
+                  </svg>
+                  เฉพาะตาราง
+                </button>
+              </div>
             )}
             <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
               {([["visits", "ประวัติการเยี่ยม"], ["commissions", "รายงานค่าคอม"]] as const).map(([key, label]) => (
