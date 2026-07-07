@@ -24,6 +24,23 @@ interface User {
   createdAt: string;
 }
 
+interface UserSummary {
+  userId: string;
+  totalAmount: number;
+  reachedThreshold: boolean;
+  commission: number;
+}
+interface CommissionData {
+  month: string;
+  settings: { rate: number; threshold: number; tiers?: any[] };
+  summary: UserSummary[];
+}
+
+function getCurrentMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 const RESULT_LABEL: Record<string, string> = { buy: "ซื้อ", no_buy: "ไม่ซื้อ", not_found: "ไม่พบ" };
 const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน" };
 
@@ -46,6 +63,8 @@ export default function DashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [visits, setVisits] = useState<VisitRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [commData, setCommData] = useState<CommissionData | null>(null);
+  const [commLoading, setCommLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -70,6 +89,13 @@ export default function DashboardPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    api.getCommissionSummary(getCurrentMonth())
+      .then(setCommData)
+      .catch(console.error)
+      .finally(() => setCommLoading(false));
   }, []);
 
   const provinces = useMemo(() => Array.from(new Set(visits.map((v) => v.province))).sort(), [visits]);
@@ -137,6 +163,12 @@ export default function DashboardPage() {
   }, [filteredVisits, period, customFrom, customTo]);
 
   const recentVisits = filteredVisits.slice(0, 5);
+
+  const commReached = commData?.summary.filter((r) => r.reachedThreshold) ?? [];
+  const totalCommission = commReached.reduce((s, r) => s + r.commission, 0);
+  const reachedCount = commReached.length;
+  const pendingCount = (commData?.summary.length ?? 0) - reachedCount;
+  const totalSlipsAmount = commData?.summary.reduce((s, r) => s + r.totalAmount, 0) ?? 0;
 
   const range = getDateRange(period, customFrom, customTo);
   const periodLabel = range
@@ -291,6 +323,96 @@ export default function DashboardPage() {
               <p className="text-xs text-gray-400 mt-1.5">{card.sub}</p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Commission summary — current month */}
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">ค่าคอมมิชชันเดือนนี้</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* ยอดขายจากสลิป */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-xs font-medium text-gray-400">ยอดขายจากสลิป</p>
+              <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                </svg>
+              </div>
+            </div>
+            <div className="h-9 flex items-center">
+              {commLoading ? (
+                <div className="h-7 w-28 bg-gray-200 animate-pulse rounded-lg" />
+              ) : (
+                <p className="text-2xl font-bold tabular-nums leading-none text-blue-600">
+                  ฿{totalSlipsAmount.toLocaleString("th-TH")}
+                </p>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">รวมสลิปที่ยืนยันแล้ว</p>
+          </div>
+
+          {/* ค่าคอมรวม */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-xs font-medium text-gray-400">ค่าคอมรวม</p>
+              <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <div className="h-9 flex items-center">
+              {commLoading ? (
+                <div className="h-7 w-28 bg-gray-200 animate-pulse rounded-lg" />
+              ) : (
+                <p className="text-2xl font-bold tabular-nums leading-none text-amber-600">
+                  ฿{totalCommission.toLocaleString("th-TH")}
+                </p>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">รวมที่ถึงเป้าแล้ว</p>
+          </div>
+
+          {/* ถึงเป้า */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-xs font-medium text-gray-400">เซลถึงเป้า</p>
+              <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+            </div>
+            <div className="h-9 flex items-center">
+              {commLoading ? (
+                <div className="h-7 w-16 bg-gray-200 animate-pulse rounded-lg" />
+              ) : (
+                <p className="text-3xl font-bold tabular-nums leading-none text-green-600">{reachedCount}</p>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">คน จาก {commData?.summary.length ?? 0} คน</p>
+          </div>
+
+          {/* ยังไม่ถึงเป้า */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-xs font-medium text-gray-400">ยังไม่ถึงเป้า</p>
+              <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <div className="h-9 flex items-center">
+              {commLoading ? (
+                <div className="h-7 w-16 bg-gray-200 animate-pulse rounded-lg" />
+              ) : (
+                <p className="text-3xl font-bold tabular-nums leading-none text-gray-500">{pendingCount}</p>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">คน รอถึงเป้า</p>
+          </div>
         </div>
       </div>
 
