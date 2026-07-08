@@ -95,6 +95,9 @@ export const api = {
   getUserAdjustments: (userId: string) =>
     request(`/commission-adjustments/user/${userId}`),
 
+  getOutstandingDebtAll: () =>
+    request(`/commission-adjustments/outstanding`),
+
   getCommissionBreakdown: (userId: string, month: string) =>
     request(`/visits/commission-breakdown?userId=${userId}&month=${month}`),
 

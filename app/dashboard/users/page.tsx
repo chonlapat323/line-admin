@@ -23,11 +23,6 @@ interface AdjustmentLog {
   admin: { fullName: string };
 }
 
-function getNextMonth() {
-  const now = new Date();
-  const d = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 
 function AdjustmentLogModal({ user, onClose }: { user: User; onClose: () => void }) {
   const [logs, setLogs] = useState<AdjustmentLog[]>([]);
@@ -134,11 +129,10 @@ export default function UsersPage() {
 
   useEffect(() => {
     loadUsers();
-    api.getCommissionAdjustments(getNextMonth()).then((data: any[]) => {
+    // ยอดค้างรวม = SUM ทุก record ต่อ user (ไม่ filter by month)
+    api.getOutstandingDebtAll().then((data: { userId: string; outstandingDebt: number }[]) => {
       const map: Record<string, number> = {};
-      for (const a of data) {
-        map[a.userId] = (map[a.userId] ?? 0) + a.amount;
-      }
+      for (const row of data) map[row.userId] = row.outstandingDebt;
       setAdjMap(map);
     }).catch(() => {});
   }, []);
@@ -277,7 +271,7 @@ export default function UsersPage() {
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">สิทธิ์</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">บัญชีธนาคาร</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden xl:table-cell">วันที่สมัคร</th>
-              <th className="text-right px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ค้างเดือนหน้า</th>
+              <th className="text-right px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ยอดค้าง</th>
               <th className="px-5 py-3.5"></th>
             </tr>
           </thead>
