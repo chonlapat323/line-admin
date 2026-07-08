@@ -11,7 +11,7 @@ const PRINT_STYLE = `
   table tbody td { color: #000 !important; }
   table tfoot tr { background: none !important; border-top: 2px solid #000 !important; }
   table tfoot td { color: #000 !important; }
-  span[class*="rounded-full"] { background: none !important; color: #000 !important; border: 1px solid #000; }
+  span[class*="rounded-full"] { background: none !important; color: #000 !important; border: none !important; padding: 0 !important; }
 }
 `;
 
