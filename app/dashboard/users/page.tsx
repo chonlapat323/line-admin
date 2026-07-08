@@ -14,6 +14,72 @@ interface User {
   createdAt: string;
 }
 
+interface AdjustmentLog {
+  id: string;
+  month: string;
+  amount: number;
+  note?: string;
+  createdAt: string;
+  admin: { fullName: string };
+}
+
+function getNextMonth() {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function AdjustmentLogModal({ user, onClose }: { user: User; onClose: () => void }) {
+  const [logs, setLogs] = useState<AdjustmentLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getUserAdjustments(user.id)
+      .then(setLogs)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [user.id]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="font-bold text-gray-800">ประวัติช่วยยอดขาย</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{user.fullName}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5">
+          {loading && <p className="text-center text-sm text-gray-400 py-8">กำลังโหลด...</p>}
+          {!loading && logs.length === 0 && <p className="text-center text-sm text-gray-400 py-8">ไม่มีประวัติ</p>}
+          {!loading && logs.length > 0 && (
+            <div className="space-y-3">
+              {logs.map((log) => (
+                <div key={log.id} className={`rounded-xl border px-4 py-3 ${log.amount > 0 ? "border-green-100 bg-green-50" : "border-orange-100 bg-orange-50"}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-500">เดือน {log.month}</span>
+                    <span className={`text-sm font-bold tabular-nums ${log.amount > 0 ? "text-green-700" : "text-orange-600"}`}>
+                      {log.amount > 0 ? "+" : ""}฿{log.amount.toLocaleString("th-TH")}
+                    </span>
+                  </div>
+                  {log.note && <p className="text-xs text-gray-500 mt-1">{log.note}</p>}
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs text-gray-400">โดย {log.admin.fullName}</span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(log.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface RoleOption {
   id: string;
   name: string;
@@ -52,6 +118,8 @@ export default function UsersPage() {
   const [form, setForm] = useState({ email: "", password: "", fullName: "", roleId: "" });
   const [editForm, setEditForm] = useState({ fullName: "", email: "", roleId: "", password: "", bankName: "", bankAccount: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [adjMap, setAdjMap] = useState<Record<string, number>>({});
+  const [logTarget, setLogTarget] = useState<User | null>(null);
 
   async function loadUsers() {
     try {
@@ -64,7 +132,16 @@ export default function UsersPage() {
     }
   }
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => {
+    loadUsers();
+    api.getCommissionAdjustments(getNextMonth()).then((data: any[]) => {
+      const map: Record<string, number> = {};
+      for (const a of data) {
+        map[a.userId] = (map[a.userId] ?? 0) + a.amount;
+      }
+      setAdjMap(map);
+    }).catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -200,6 +277,7 @@ export default function UsersPage() {
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">สิทธิ์</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">บัญชีธนาคาร</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden xl:table-cell">วันที่สมัคร</th>
+              <th className="text-right px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ค้างเดือนหน้า</th>
               <th className="px-5 py-3.5"></th>
             </tr>
           </thead>
@@ -223,7 +301,7 @@ export default function UsersPage() {
             )}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-12 text-center">
+                <td colSpan={6} className="px-5 py-12 text-center">
                   <div className="text-gray-400">
                     <svg className="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -267,8 +345,26 @@ export default function UsersPage() {
                 <td className="px-5 py-4 text-gray-400 text-xs hidden xl:table-cell">
                   {new Date(u.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
                 </td>
+                <td className="px-5 py-4 text-right hidden lg:table-cell">
+                  {adjMap[u.id] ? (
+                    <span className="text-xs font-semibold text-orange-600 tabular-nums">
+                      ฿{Math.abs(adjMap[u.id]).toLocaleString("th-TH")}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-300">—</span>
+                  )}
+                </td>
                 <td className="px-5 py-4 text-right">
                   <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => setLogTarget(u)}
+                      className="text-gray-400 hover:text-indigo-500 transition-colors p-1.5 rounded-lg hover:bg-indigo-50"
+                      title="ดู log ช่วยยอด"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </button>
                     {canEdit && (
                       <button
                         onClick={() => openEdit(u)}
@@ -469,6 +565,9 @@ export default function UsersPage() {
           </div>
         </div>
       )}
+
+      {/* Adjustment Log Modal */}
+      {logTarget && <AdjustmentLogModal user={logTarget} onClose={() => setLogTarget(null)} />}
 
       {/* Delete Confirmation Modal */}
       {deleteTarget && (

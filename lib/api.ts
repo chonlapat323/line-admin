@@ -92,6 +92,9 @@ export const api = {
   getCommissionAdjustments: (month: string) =>
     request(`/commission-adjustments?month=${month}`),
 
+  getUserAdjustments: (userId: string) =>
+    request(`/commission-adjustments/user/${userId}`),
+
   getCommissionBreakdown: (userId: string, month: string) =>
     request(`/visits/commission-breakdown?userId=${userId}&month=${month}`),
 
