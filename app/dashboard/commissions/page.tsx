@@ -9,6 +9,7 @@ interface UserSummary {
   user: { fullName: string; email: string; bankName?: string; bankAccount?: string };
   visitCount: number;
   totalAmount: number;
+  adjustment: number;
   outstandingDebt: number;
   reachedThreshold: boolean;
   commission: number;
@@ -287,9 +288,9 @@ function AdjustModal({ row, month, onClose, onDone }: {
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" />
           </div>
           {num !== 0 && (
-            <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-xs text-orange-700 space-y-1">
-              <p>บันทึกยอดค้าง <span className="font-bold">฿{Math.abs(num).toLocaleString("th-TH")}</span> ให้ {row.user.fullName}</p>
-              <p className="text-orange-500">ระบบจะหักอัตโนมัติจาก slip ที่ส่งเข้ามาครั้งถัดไป</p>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 space-y-1">
+              <p>เพิ่มยอดขายเดือนนี้ <span className="font-bold">+฿{Math.abs(num).toLocaleString("th-TH")}</span> ให้ {row.user.fullName}</p>
+              <p className="text-orange-500 font-medium">ยอดนี้จะถูกหักคืนอัตโนมัติจาก slip ครั้งถัดไป</p>
             </div>
           )}
           <div>
@@ -765,6 +766,11 @@ export default function CommissionsPage() {
                         <td className="px-4 py-3 text-right font-medium text-gray-700">{row.visitCount}</td>
                         <td className="px-4 py-3 text-right">
                           <p className="font-semibold text-gray-800">฿{row.totalAmount.toLocaleString("th-TH")}</p>
+                          {row.adjustment > 0 && (
+                            <p className="text-xs text-blue-500 mt-0.5 font-medium">
+                              +฿{row.adjustment.toLocaleString("th-TH")} ช่วยยอด
+                            </p>
+                          )}
                           {row.outstandingDebt > 0 && (
                             <p className="text-xs text-orange-500 mt-0.5 font-medium">
                               ค้าง ฿{row.outstandingDebt.toLocaleString("th-TH")}
