@@ -295,7 +295,7 @@ export default function ReportsPage() {
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">หมายเหตุ</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">วันที่</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">สถานะ</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">สลิป</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-white print:hidden">สลิป</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -318,7 +318,7 @@ export default function ReportsPage() {
                           <td className="px-4 py-3">
                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 print:hidden">
                             {s.slipUrl ? (
                               <button onClick={() => setPreviewImg(s.slipUrl)} className="text-blue-500 hover:underline text-xs">ดูสลิป</button>
                             ) : <span className="text-gray-300 text-xs">—</span>}
