@@ -23,9 +23,20 @@ interface VisitRecord {
 }
 interface SlipRecord {
   id: string; shopName: string; amount: number | null;
-  details: string | null; slipUrl: string; slipStatus: string; createdAt: string;
+  details: string | null; slipUrl: string; slipStatus: string;
+  debtDeducted: number; createdAt: string;
 }
 interface CommissionTier { min: number; max: number | null; rate: number; }
+interface CommissionSummaryRow {
+  userId: string;
+  totalAmount: number;
+  adjustment: number;
+  outstandingDebt: number;
+  reachedThreshold: boolean;
+  commission: number;
+  visitCount: number;
+  pendingCount: number;
+}
 
 const RESULT_LABEL: Record<string, { label: string; color: string }> = {
   buy:       { label: "ซื้อ",   color: "bg-green-50 text-green-700" },
@@ -63,6 +74,11 @@ export default function ReportsPage() {
 
   const [slips, setSlips] = useState<SlipRecord[]>([]);
   const [loadingSlips, setLoadingSlips] = useState(false);
+  const [commMonth, setCommMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [commSummaryRow, setCommSummaryRow] = useState<CommissionSummaryRow | null>(null);
 
   const [previewImg, setPreviewImg] = useState<string | null>(null);
 
@@ -99,11 +115,20 @@ export default function ReportsPage() {
     if (!selectedUserId || tab !== "commissions") return;
     setLoadingSlips(true);
     setSlips([]);
-    api.getSlipSubmissions({ filterUserId: selectedUserId, limit: 1000 })
-      .then((res: any) => setSlips(res?.data ?? []))
-      .catch(console.error)
+    setCommSummaryRow(null);
+    const [y, m] = commMonth.split("-").map(Number);
+    const df = new Date(y, m - 1, 1).toISOString().split("T")[0];
+    const dt = new Date(y, m, 0).toISOString().split("T")[0];
+    Promise.all([
+      api.getSlipSubmissions({ filterUserId: selectedUserId, limit: 1000, dateFrom: df, dateTo: dt }),
+      api.getCommissionSummary(commMonth),
+    ]).then(([slipRes, summaryRes]: any[]) => {
+      setSlips(slipRes?.data ?? []);
+      const row = (summaryRes?.summary ?? []).find((r: any) => r.userId === selectedUserId) ?? null;
+      setCommSummaryRow(row);
+    }).catch(console.error)
       .finally(() => setLoadingSlips(false));
-  }, [selectedUserId, tab]);
+  }, [selectedUserId, tab, commMonth]);
 
   function resetFilters() {
     setDateFrom(""); setDateTo(""); setShopSearch("");
@@ -194,12 +219,29 @@ export default function ReportsPage() {
               </p>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             {selectedUserId && (
               <button onClick={() => window.print()}
                 className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-xl transition-colors">
                 พิมพ์
               </button>
+            )}
+            {tab === "commissions" && (
+              <div className="flex items-center gap-1 bg-gray-100 rounded-xl px-2 py-1">
+                <button onClick={() => {
+                  const [y, m] = commMonth.split("-").map(Number);
+                  const d = new Date(y, m - 2, 1);
+                  setCommMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+                }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-200 text-gray-600 font-bold">‹</button>
+                <span className="text-sm font-semibold text-gray-700 min-w-[6rem] text-center">
+                  {new Date(commMonth + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" })}
+                </span>
+                <button onClick={() => {
+                  const [y, m] = commMonth.split("-").map(Number);
+                  const d = new Date(y, m, 1);
+                  setCommMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+                }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-200 text-gray-600 font-bold">›</button>
+              </div>
             )}
             <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
               {([["visits", "ประวัติการออกทริป"], ["commissions", "รายงานค่าคอม"]] as const).map(([key, label]) => (
@@ -344,6 +386,65 @@ export default function ReportsPage() {
           </div>
         </div>
 
+        {/* Commission summary table */}
+        {tab === "commissions" && selectedUserId && !loadingSlips && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden print:mt-4">
+            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+              <p className="text-sm font-bold text-gray-700">สรุปค่าคอม — {new Date(commMonth + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" })}</p>
+            </div>
+            {commSummaryRow ? (
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr className="border-b border-gray-50">
+                    <td className="px-5 py-3 text-gray-500">ยอดสลิปสุทธิ (หักหนี้แล้ว)</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800 tabular-nums">
+                      ฿{(commSummaryRow.totalAmount - (commSummaryRow.adjustment ?? 0)).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                  {(commSummaryRow.adjustment ?? 0) > 0 && (
+                    <tr className="border-b border-gray-50">
+                      <td className="px-5 py-3 text-blue-600">+ ยอดช่วยยอด (admin)</td>
+                      <td className="px-5 py-3 text-right font-semibold text-blue-600 tabular-nums">
+                        +฿{commSummaryRow.adjustment.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <td className="px-5 py-3 font-bold text-gray-800">รวมยอดขาย</td>
+                    <td className="px-5 py-3 text-right font-bold text-gray-800 tabular-nums">
+                      ฿{commSummaryRow.totalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-gray-50">
+                    <td className="px-5 py-3 text-gray-500">สถานะ</td>
+                    <td className="px-5 py-3 text-right">
+                      {commSummaryRow.reachedThreshold
+                        ? <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">✓ ถึงเป้า</span>
+                        : <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">✗ ไม่ถึงเป้า</span>}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-gray-50">
+                    <td className="px-5 py-3 font-semibold text-green-700">ค่าคอม</td>
+                    <td className="px-5 py-3 text-right font-bold text-green-700 tabular-nums text-base">
+                      ฿{commSummaryRow.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                  {commSummaryRow.outstandingDebt > 0 && (
+                    <tr>
+                      <td className="px-5 py-3 text-orange-600">ยอดค้างคงเหลือ</td>
+                      <td className="px-5 py-3 text-right font-semibold text-orange-600 tabular-nums">
+                        ฿{commSummaryRow.outstandingDebt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-center text-sm text-gray-400 py-8">ไม่มีข้อมูลค่าคอมเดือนนี้</p>
+            )}
+          </div>
+        )}
+
         {/* Print-only summary */}
         {tab === "visits" && filteredVisits.length > 0 && (
           <div className="hidden print:block mt-6 pt-4 border-t-2 border-gray-300">
@@ -467,36 +568,29 @@ export default function ReportsPage() {
             {tab === "commissions" && (
               <>
                 <div>
-                  <p className="text-xs text-gray-500">ยอดสลิปรวมทั้งหมด (บาท)</p>
+                  <p className="text-xs text-gray-500">ยอดขายรวม (บาท)</p>
                   <p className="text-2xl font-bold text-gray-800 tabular-nums">
-                    {slipTotal.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                    {(commSummaryRow?.totalAmount ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                   </p>
+                  {(commSummaryRow?.adjustment ?? 0) > 0 && (
+                    <p className="text-xs text-blue-500 mt-0.5">รวมช่วยยอด +฿{commSummaryRow!.adjustment.toLocaleString("th-TH")}</p>
+                  )}
                 </div>
-                {tiers.length > 0
-                  ? tierBreakdown.filter((t) => t.commission > 0).map((t, i) => (
-                    <div key={i}>
-                      <p className="text-xs text-gray-500">คอม {t.rate}%</p>
-                      <p className="text-lg font-bold text-gray-800 tabular-nums">
-                        {t.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                  ))
-                  : flatRate > 0 && (
-                    <div>
-                      <p className="text-xs text-gray-500">คอม {flatRate}%</p>
-                      <p className="text-lg font-bold text-gray-800 tabular-nums">
-                        {flatComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                  )
-                }
-                {(tiers.length > 0 || flatRate > 0) && (
-                  <div className="pt-2 border-t border-pink-200">
-                    <p className="text-xs text-gray-500">รวมค่าคอม (บาท)</p>
-                    <p className="text-xl font-bold text-green-700 tabular-nums">
-                      {(tiers.length > 0 ? commAmount : flatComm).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                <div className="pt-2 border-t border-pink-200">
+                  <p className="text-xs text-gray-500">รวมค่าคอม (บาท)</p>
+                  <p className="text-xl font-bold text-green-700 tabular-nums">
+                    {(commSummaryRow?.commission ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                  </p>
+                  {commSummaryRow && !commSummaryRow.reachedThreshold && (
+                    <p className="text-xs text-gray-400 mt-0.5">ยังไม่ถึงเป้า</p>
+                  )}
+                </div>
+                {(commSummaryRow?.outstandingDebt ?? 0) > 0 && (
+                  <div>
+                    <p className="text-xs text-orange-500">ยอดค้างคงเหลือ</p>
+                    <p className="text-lg font-bold text-orange-600 tabular-nums">
+                      ฿{commSummaryRow!.outstandingDebt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">จาก {commSlips.length} สลิป (QR ✓ + อนุมัติ)</p>
                   </div>
                 )}
               </>
