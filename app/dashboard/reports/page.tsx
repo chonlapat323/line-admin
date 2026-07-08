@@ -79,6 +79,8 @@ export default function ReportsPage() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
   const [commSummaryRow, setCommSummaryRow] = useState<CommissionSummaryRow | null>(null);
+  const [adjLogs, setAdjLogs] = useState<any[]>([]);
+  const [showAdjLog, setShowAdjLog] = useState(false);
 
   const [previewImg, setPreviewImg] = useState<string | null>(null);
 
@@ -129,6 +131,13 @@ export default function ReportsPage() {
     }).catch(console.error)
       .finally(() => setLoadingSlips(false));
   }, [selectedUserId, tab, commMonth]);
+
+  function openAdjLog() {
+    api.getUserAdjustments(selectedUserId).then((data: any[]) => {
+      setAdjLogs(data.filter((a) => a.month === commMonth && a.amount > 0));
+      setShowAdjLog(true);
+    }).catch(console.error);
+  }
 
   function resetFilters() {
     setDateFrom(""); setDateTo(""); setShopSearch("");
@@ -402,8 +411,11 @@ export default function ReportsPage() {
                     </td>
                   </tr>
                   {(commSummaryRow.adjustment ?? 0) > 0 && (
-                    <tr className="border-b border-gray-50">
-                      <td className="px-5 py-3 text-blue-600">+ ยอดช่วยยอด (admin)</td>
+                    <tr className="border-b border-gray-50 hover:bg-blue-50/50 cursor-pointer" onClick={openAdjLog}>
+                      <td className="px-5 py-3 text-blue-600 flex items-center gap-1.5">
+                        + ยอดช่วยยอด (admin)
+                        <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">ดูรายละเอียด</span>
+                      </td>
                       <td className="px-5 py-3 text-right font-semibold text-blue-600 tabular-nums">
                         +฿{commSummaryRow.adjustment.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                       </td>
@@ -603,6 +615,51 @@ export default function ReportsPage() {
           </button>
         </div>
       </div>
+
+      {/* Adjustment log popup */}
+      {showAdjLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowAdjLog(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="font-bold text-gray-800">ประวัติช่วยยอดขาย</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {selectedUser?.fullName} · {new Date(commMonth + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" })}
+                </p>
+              </div>
+              <button onClick={() => setShowAdjLog(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {adjLogs.length === 0
+                ? <p className="text-center text-sm text-gray-400 py-8">ไม่มีข้อมูล</p>
+                : (
+                  <div className="space-y-3">
+                    {adjLogs.map((log) => (
+                      <div key={log.id} className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-gray-500">เดือน {log.month}</span>
+                          <span className="text-sm font-bold text-blue-700 tabular-nums">+฿{log.amount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        {log.note && <p className="text-xs text-gray-500 mt-1">{log.note}</p>}
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-gray-400">โดย {log.admin?.fullName ?? "—"}</span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(log.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              }
+            </div>
+            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-between items-center">
+              <span className="text-xs text-gray-500">{adjLogs.length} รายการ</span>
+              <span className="text-sm font-bold text-blue-700">รวม +฿{adjLogs.reduce((s, a) => s + a.amount, 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Slip image preview */}
       {previewImg && (
