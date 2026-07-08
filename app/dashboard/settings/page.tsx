@@ -319,7 +319,7 @@ export default function SettingsPage() {
             <p className="text-xs text-gray-400 mb-2">ต้องถึงยอดนี้ก่อนจึงจะได้ค่าคอม (0 = ไม่มีขั้นต่ำ)</p>
             <div className="relative">
               <input type="number" value={commissionThreshold} onChange={(e) => setCommissionThreshold(e.target.value)}
-                placeholder="เช่น 50000" min="0" step="1"
+                placeholder="เช่น 50000" min="0" step="any"
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none pr-14" />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">บาท</span>
             </div>
@@ -346,7 +346,7 @@ export default function SettingsPage() {
                           <input
                             type="number" value={tier.max}
                             onChange={(e) => setTiers(prev => prev.map((t, j) => j === i ? { ...t, max: e.target.value } : t))}
-                            placeholder="ยอดสูงสุด" min={min + 1} step="1"
+                            placeholder="ยอดสูงสุด" min={min + 0.01} step="any"
                             className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-mono font-semibold text-gray-700 focus:ring-1 focus:ring-green-400 focus:outline-none" />
                         </div>
                       )}
