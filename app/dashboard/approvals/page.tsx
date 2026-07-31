@@ -53,6 +53,7 @@ function ApproveModal({ slip, onClose, onDone }: {
   const [amount, setAmount] = useState(String(slip.amount ?? ""));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [zoomSlip, setZoomSlip] = useState(false);
 
   async function handleApprove() {
     const amt = parseFloat(amount);
@@ -72,8 +73,16 @@ function ApproveModal({ slip, onClose, onDone }: {
         <p className="text-xs text-gray-400 mb-4">{slip.shopName} · {slip.user?.fullName}</p>
         <div className="flex justify-center mb-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={slip.slipUrl} alt="slip" className="max-h-52 rounded-xl border border-gray-100 object-contain" />
+          <img src={slip.slipUrl} alt="slip"
+            onClick={() => setZoomSlip(true)}
+            className="max-h-52 rounded-xl border border-gray-100 object-contain cursor-zoom-in hover:opacity-90 transition-opacity" />
         </div>
+        {zoomSlip && (
+          <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" onClick={() => setZoomSlip(false)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={slip.slipUrl} alt="slip full" className="max-w-full max-h-full rounded-2xl" onClick={(e) => e.stopPropagation()} />
+          </div>
+        )}
         {slip.details && <p className="text-xs text-gray-500 mb-3 bg-gray-50 rounded-lg px-3 py-2">{slip.details}</p>}
         <div className="mb-4">
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">ยอดเงิน (บาท)</label>

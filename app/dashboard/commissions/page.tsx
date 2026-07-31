@@ -8,8 +8,10 @@ interface UserSummary {
   userId: string;
   user: { fullName: string; email: string; bankName?: string; bankAccount?: string };
   visitCount: number;
-  totalAmount: number;
-  adjustment: number;
+  slipAmount: number;       // ยอดสลิปสุทธิ
+  adjustThisMonth: number;  // ยอดเติมเดือนนี้
+  adjustCarryover: number;  // ยอดเติมยกมา
+  totalAmount: number;      // ยอดคำนวณ = slipAmount + adjustThisMonth + adjustCarryover
   outstandingDebt: number;
   reachedThreshold: boolean;
   commission: number;
@@ -263,6 +265,7 @@ function AdjustModal({ row, month, onClose, onDone }: {
   async function handleSave() {
     const num = parseFloat(amount);
     if (isNaN(num) || num === 0) { setError("กรุณาใส่ยอดที่ถูกต้อง"); return; }
+    if (num > 50000) { setError("ช่วยยอดได้ไม่เกิน 50,000 บาทต่อครั้ง"); return; }
     setSaving(true); setError("");
     try {
       await api.createCommissionAdjustment({ userId: row.userId, month, amount: num, note: note || undefined });
@@ -290,7 +293,7 @@ function AdjustModal({ row, month, onClose, onDone }: {
           {num !== 0 && (
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 space-y-1">
               <p>เพิ่มยอดขายเดือนนี้ <span className="font-bold">+฿{Math.abs(num).toLocaleString("th-TH")}</span> ให้ {row.user.fullName}</p>
-              <p className="text-orange-500 font-medium">ยอดนี้จะถูกหักคืนอัตโนมัติจาก slip ครั้งถัดไป</p>
+              <p className="text-orange-500 font-medium">ยอดนี้จะถูกหักคืนในการคำนวณเดือนหน้า (ไม่ใช่เดือนนี้)</p>
             </div>
           )}
           <div>
@@ -553,13 +556,374 @@ function HistoryTab() {
   );
 }
 
+// ─── Adj Detail Modal ────────────────────────────────────────────────────────
+interface AdjRecord {
+  id: string; month: string; amount: number; note?: string; createdAt: string;
+  admin: { fullName: string };
+}
+
+interface SlipBreakdown {
+  id: string;
+  shopName: string;
+  amount: number;
+  debtDeducted: number;
+  netAmount: number;
+  createdAt: string;
+}
+
+function AdjDetailModal({ row, currentMonth, onClose }: {
+  row: UserSummary; currentMonth: string; onClose: () => void;
+}) {
+  const [records, setRecords] = useState<AdjRecord[]>([]);
+  const [slips, setSlips] = useState<SlipBreakdown[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      api.getUserAdjustments(row.userId),
+      api.getCommissionBreakdown(row.userId, currentMonth),
+    ])
+      .then(([adjs, breakdown]: [AdjRecord[], SlipBreakdown[]]) => {
+        setRecords(adjs);
+        setSlips(breakdown.filter((s) => (s.debtDeducted ?? 0) > 0));
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [row.userId, currentMonth]);
+
+  const positives = records.filter((r) => r.amount > 0);
+  const thisMonth = positives.filter((r) => r.month === currentMonth);
+  const carryover = positives.filter((r) => r.month < currentMonth);
+  const totalPositive = positives.reduce((s, r) => s + r.amount, 0);
+  const totalDeducted = slips.reduce((s, r) => s + (r.debtDeducted ?? 0), 0);
+
+  function fmtMonth(m: string) {
+    const [y, mo] = m.split("-").map(Number);
+    return new Date(y, mo - 1, 1).toLocaleDateString("th-TH", { month: "long", year: "numeric" });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="font-bold text-gray-800">ยอดช่วยยอด — {row.user.fullName}</h3>
+            <p className="text-xs text-gray-400 mt-0.5">ยอดรวมที่ช่วย ฿{totalPositive.toLocaleString("th-TH")}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {loading && <p className="text-center text-sm text-gray-400 py-8">กำลังโหลด...</p>}
+
+          {!loading && positives.length === 0 && slips.length === 0 && (
+            <p className="text-center text-sm text-gray-400 py-8">ไม่มีรายการ</p>
+          )}
+
+          {/* เดือนนี้ */}
+          {thisMonth.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-blue-600 mb-2 uppercase tracking-wide">
+                ช่วยเดือนนี้ ({fmtMonth(currentMonth)})
+              </p>
+              <div className="space-y-2">
+                {thisMonth.map((r) => (
+                  <div key={r.id} className="flex items-start justify-between bg-blue-50 rounded-xl px-3 py-2.5">
+                    <div className="flex-1 min-w-0 mr-3">
+                      <p className="text-sm text-gray-700">{r.note || "—"}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        โดย {r.admin.fullName} · {new Date(r.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-blue-600 whitespace-nowrap">+฿{r.amount.toLocaleString("th-TH")}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ยกมา */}
+          {carryover.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-amber-600 mb-2 uppercase tracking-wide">
+                ยกมาจากเดือนก่อน ({carryover.length} รายการ)
+              </p>
+              <div className="space-y-2">
+                {carryover.map((r) => (
+                  <div key={r.id} className="flex items-start justify-between bg-amber-50 rounded-xl px-3 py-2.5">
+                    <div className="flex-1 min-w-0 mr-3">
+                      <p className="text-xs font-semibold text-amber-700 mb-0.5">{fmtMonth(r.month)}</p>
+                      <p className="text-sm text-gray-700">{r.note || "—"}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        โดย {r.admin.fullName} · {new Date(r.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-amber-600 whitespace-nowrap">+฿{r.amount.toLocaleString("th-TH")}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Slip ที่ถูกหักยอดค้าง */}
+          {slips.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-rose-600 mb-2 uppercase tracking-wide">
+                หักคืนผ่าน Slip ({slips.length} รายการ)
+              </p>
+              <div className="space-y-2">
+                {slips.map((s) => (
+                  <div key={s.id} className="bg-rose-50 rounded-xl px-3 py-2.5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0 mr-3">
+                        <p className="text-sm text-gray-700 font-medium">{s.shopName || "—"}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {new Date(s.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-rose-600">−฿{(s.debtDeducted ?? 0).toLocaleString("th-TH")}</p>
+                        <p className="text-xs text-gray-400">จาก ฿{s.amount.toLocaleString("th-TH")}</p>
+                      </div>
+                    </div>
+                    {/* progress bar แสดงสัดส่วนที่หัก */}
+                    <div className="mt-2 h-1.5 bg-rose-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-rose-400 rounded-full"
+                        style={{ width: `${Math.min(100, Math.round(((s.debtDeducted ?? 0) / s.amount) * 100))}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      สุทธิจาก slip นี้ ฿{s.netAmount.toLocaleString("th-TH")}
+                      {" "}({Math.round(((s.debtDeducted ?? 0) / s.amount) * 100)}% ถูกหัก)
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer summary */}
+        {!loading && (positives.length > 0 || slips.length > 0) && (
+          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl space-y-1.5">
+            {thisMonth.length > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">ยอดช่วยเดือนนี้</span>
+                <span className="font-semibold text-blue-600">+฿{thisMonth.reduce((s, r) => s + r.amount, 0).toLocaleString("th-TH")}</span>
+              </div>
+            )}
+            {carryover.length > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">ยอดยกมา</span>
+                <span className="font-semibold text-amber-600">+฿{carryover.reduce((s, r) => s + r.amount, 0).toLocaleString("th-TH")}</span>
+              </div>
+            )}
+            {totalDeducted > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">หักคืนแล้ว (เดือนนี้)</span>
+                <span className="font-semibold text-rose-600">−฿{totalDeducted.toLocaleString("th-TH")}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm border-t border-gray-200 pt-1.5">
+              <span className="font-semibold text-gray-700">ยอดค้างคงเหลือ</span>
+              <span className={`font-bold ${row.outstandingDebt > 0 ? "text-orange-600" : "text-green-600"}`}>
+                {row.outstandingDebt > 0 ? `฿${row.outstandingDebt.toLocaleString("th-TH")}` : "หักคืนครบแล้ว"}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Report Tab ──────────────────────────────────────────────────────────────
+function ReportTab({ data, payments, month }: {
+  data: CommissionData | null;
+  payments: Payment[];
+  month: string;
+}) {
+  const paidSet = useMemo(() => new Set(payments.map((p) => p.userId)), [payments]);
+  const rows = data?.summary ?? [];
+  const monthLabel = new Date(month + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" });
+
+  const totalSlip      = rows.reduce((s, r) => s + r.slipAmount, 0);
+  const totalCarryover = rows.reduce((s, r) => s + r.adjustCarryover, 0);
+  const totalThisMonth = rows.reduce((s, r) => s + r.adjustThisMonth, 0);
+  const totalCalc      = rows.reduce((s, r) => s + r.totalAmount, 0);
+  const totalComm      = rows.reduce((s, r) => s + r.commission, 0);
+  const totalDebt      = rows.reduce((s, r) => s + r.outstandingDebt, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
+        <div>
+          <p className="text-sm font-semibold text-gray-700">รายงานค่าคอมมิชชัน — {monthLabel}</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            สูตร: ยอดสลิปสุทธิ + ยอดช่วยยกมา + ยอดช่วยเดือนนี้ = ยอดคำนวณ → ×{data?.settings.rate ?? "?"}%
+          </p>
+        </div>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-xl transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          พิมพ์เอกสาร
+        </button>
+      </div>
+
+      {/* Print header — visible only on print */}
+      <div className="hidden print:block mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">รายงานค่าคอมมิชชัน</h1>
+        <p className="text-sm text-gray-500 mt-1">เดือน {monthLabel} · อัตรา {data?.settings.rate}% · ขั้นต่ำ ฿{data?.settings.threshold.toLocaleString("th-TH")}</p>
+        <p className="text-xs text-gray-400 mt-0.5">สูตร: ยอดสลิปสุทธิ + ยอดช่วยยกมา + ยอดช่วยเดือนนี้ = ยอดคำนวณ × {data?.settings.rate}%</p>
+      </div>
+
+      {/* Legend — ยอดช่วยยอด คืออะไร */}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-xs text-blue-700 space-y-1 print:hidden">
+        <p><span className="font-semibold">ยอดช่วยยกมา</span> = ยอดที่ admin ช่วยยอดในเดือนก่อนๆ ที่ยังค้างอยู่ → รวมในการคำนวณค่าคอมเดือนนี้</p>
+        <p><span className="font-semibold">ยอดช่วยเดือนนี้</span> = ยอดที่ admin ช่วยยอดในเดือนนี้ → รวมในการคำนวณค่าคอมเดือนนี้</p>
+        <p><span className="font-semibold text-orange-600">ยอดค้าง</span> = ยอดรวมทั้งหมดที่ยังไม่ได้หักคืน → จะถูกหักออกจากค่าคอมเดือนถัดไป</p>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden print:shadow-none print:border print:border-gray-300 print:rounded-none">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{ fontVariantNumeric: "tabular-nums" }}>
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50 print:bg-gray-100">
+                <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">#</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">ชื่อเซล</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-gray-600">ยอดสลิปสุทธิ</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500">+ช่วยยกมา</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500">+ช่วยเดือนนี้</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-gray-800">=ยอดคำนวณ</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-amber-600">ค่าคอม</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-orange-500">ยอดค้าง*</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
+                <th className="text-center px-3 py-3 text-xs font-semibold text-gray-500">สถานะ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="text-center py-16 text-gray-400 text-sm">ไม่มีข้อมูล</td>
+                </tr>
+              )}
+              {rows.map((row, i) => {
+                const paid = paidSet.has(row.userId);
+                const hasAdj = row.adjustCarryover > 0 || row.adjustThisMonth > 0;
+                return (
+                  <tr key={row.userId} className="border-b border-gray-50 print:border-gray-200">
+                    <td className="px-3 py-3 text-xs text-gray-400">{i + 1}</td>
+                    <td className="px-3 py-3">
+                      <p className="font-semibold text-gray-800">{row.user.fullName}</p>
+                      <p className="text-xs text-gray-400 print:hidden">{row.user.email}</p>
+                    </td>
+                    {/* ยอดสลิปสุทธิ */}
+                    <td className="px-3 py-3 text-right text-gray-700">
+                      ฿{row.slipAmount.toLocaleString("th-TH")}
+                    </td>
+                    {/* ยอดช่วยยกมา */}
+                    <td className="px-3 py-3 text-right">
+                      {row.adjustCarryover > 0
+                        ? <span className="text-blue-500 font-medium">+฿{row.adjustCarryover.toLocaleString("th-TH")}</span>
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    {/* ยอดช่วยเดือนนี้ */}
+                    <td className="px-3 py-3 text-right">
+                      {row.adjustThisMonth > 0
+                        ? <span className="text-blue-500 font-medium">+฿{row.adjustThisMonth.toLocaleString("th-TH")}</span>
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    {/* ยอดคำนวณ */}
+                    <td className={`px-3 py-3 text-right font-bold ${hasAdj ? "text-gray-900" : "text-gray-700"}`}>
+                      ฿{row.totalAmount.toLocaleString("th-TH")}
+                      {!row.reachedThreshold && (
+                        <p className="text-xs font-normal text-gray-400 mt-0.5">ไม่ถึงเป้า</p>
+                      )}
+                    </td>
+                    {/* ค่าคอม */}
+                    <td className="px-3 py-3 text-right font-bold">
+                      {row.commission > 0
+                        ? <span className="text-amber-600">฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    {/* ยอดค้าง */}
+                    <td className="px-3 py-3 text-right">
+                      {row.outstandingDebt > 0
+                        ? <span className="text-orange-500 font-medium">฿{row.outstandingDebt.toLocaleString("th-TH")}</span>
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    {/* ธนาคาร */}
+                    <td className="px-3 py-3">
+                      {row.user.bankName
+                        ? <div>
+                            <p className="text-sm text-gray-700">{row.user.bankName}</p>
+                            <p className="text-xs text-gray-400 font-mono">{row.user.bankAccount}</p>
+                          </div>
+                        : <span className={`text-xs ${row.reachedThreshold ? "text-red-400 font-semibold" : "text-gray-300"}`}>
+                            {row.reachedThreshold ? "ยังไม่กรอก" : "—"}
+                          </span>}
+                    </td>
+                    {/* สถานะ */}
+                    <td className="px-3 py-3 text-center text-xs font-semibold">
+                      {row.reachedThreshold
+                        ? paid
+                          ? <span className="text-green-600">จ่ายแล้ว</span>
+                          : <span className="text-amber-600">รอจ่าย</span>
+                        : <span className="text-gray-300">ไม่ถึงเป้า</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            {rows.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-gray-200 bg-gray-50 print:bg-gray-100">
+                  <td colSpan={2} className="px-3 py-3 text-xs font-semibold text-gray-500">รวม {rows.length} คน</td>
+                  <td className="px-3 py-3 text-right font-semibold text-gray-700">฿{totalSlip.toLocaleString("th-TH")}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-blue-500">
+                    {totalCarryover > 0 ? `+฿${totalCarryover.toLocaleString("th-TH")}` : "—"}
+                  </td>
+                  <td className="px-3 py-3 text-right font-semibold text-blue-500">
+                    {totalThisMonth > 0 ? `+฿${totalThisMonth.toLocaleString("th-TH")}` : "—"}
+                  </td>
+                  <td className="px-3 py-3 text-right font-bold text-gray-900">฿{totalCalc.toLocaleString("th-TH")}</td>
+                  <td className="px-3 py-3 text-right font-bold text-amber-600">฿{totalComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-orange-500">
+                    {totalDebt > 0 ? `฿${totalDebt.toLocaleString("th-TH")}` : "—"}
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
+      {/* Footnote */}
+      <div className="text-xs text-gray-400 space-y-0.5">
+        <p>* ยอดค้าง = ยอดที่ admin ช่วยยอดไว้ยังไม่หักคืน → จะถูกนำไปหักออกจากค่าคอมในเดือนถัดไปโดยอัตโนมัติ</p>
+        <p>อัตราค่าคอม {data?.settings.rate}% คำนวณจากยอดคำนวณ เมื่อถึงขั้นต่ำ ฿{data?.settings.threshold.toLocaleString("th-TH")}</p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function CommissionsPage() {
   const month = getCurrentMonth();
   const [data, setData] = useState<CommissionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [activeTab, setActiveTab] = useState<"calc" | "history">("calc");
+  const [activeTab, setActiveTab] = useState<"calc" | "history" | "report">("calc");
 
   const [statusFilter, setStatusFilter] = useState("reached");
   const [search, setSearch] = useState("");
@@ -567,6 +931,7 @@ export default function CommissionsPage() {
   const router = useRouter();
   const [payingRow, setPayingRow] = useState<UserSummary | null>(null);
   const [adjustingRow, setAdjustingRow] = useState<UserSummary | null>(null);
+  const [adjDetailRow, setAdjDetailRow] = useState<UserSummary | null>(null);
   const [canEdit, setCanEdit] = useState(false);
 
   useEffect(() => {
@@ -666,9 +1031,13 @@ export default function CommissionsPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-        {[{ key: "calc", label: "คำนวณ" }, { key: "history", label: `ประวัติการจ่าย${payments.length > 0 ? ` (${payments.length})` : ""}` }].map((t) => (
-          <button key={t.key} onClick={() => setActiveTab(t.key as "calc" | "history")}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit print:hidden">
+        {[
+          { key: "calc",    label: "คำนวณ" },
+          { key: "history", label: `ประวัติการจ่าย${payments.length > 0 ? ` (${payments.length})` : ""}` },
+          { key: "report",  label: "รายงาน" },
+        ].map((t) => (
+          <button key={t.key} onClick={() => setActiveTab(t.key as "calc" | "history" | "report")}
             className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${activeTab === t.key ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}>
             {t.label}
           </button>
@@ -676,7 +1045,12 @@ export default function CommissionsPage() {
       </div>
 
       {/* Tab: History */}
-      {activeTab === "history" && <HistoryTab />}
+      {activeTab === "history" && <div className="print:hidden"><HistoryTab /></div>}
+
+      {/* Tab: Report */}
+      {activeTab === "report" && (
+        <ReportTab data={data} payments={payments} month={month} />
+      )}
 
       {/* Tab: Calc */}
       {activeTab === "calc" && (
@@ -764,12 +1138,17 @@ export default function CommissionsPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right font-medium text-gray-700">{row.visitCount}</td>
-                        <td className="px-4 py-3 text-right">
-                          <p className="font-semibold text-gray-800">฿{row.totalAmount.toLocaleString("th-TH")}</p>
-                          {row.adjustment > 0 && (
-                            <p className="text-xs text-blue-500 mt-0.5 font-medium">
-                              +฿{row.adjustment.toLocaleString("th-TH")} ช่วยยอด
-                            </p>
+                        <td className="px-4 py-3 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
+                          <p className="font-bold text-gray-800">
+                            ฿{row.totalAmount.toLocaleString("th-TH")}
+                          </p>
+                          {(row.adjustCarryover > 0 || row.adjustThisMonth > 0) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setAdjDetailRow(row); }}
+                              className="text-xs text-blue-500 hover:text-blue-700 mt-0.5 underline underline-offset-2 cursor-pointer"
+                            >
+                              มียอดช่วย
+                            </button>
                           )}
                           {row.outstandingDebt > 0 && (
                             <p className="text-xs text-orange-500 mt-0.5 font-medium">
@@ -779,7 +1158,7 @@ export default function CommissionsPage() {
                           {canEdit && (
                             <button onClick={(e) => { e.stopPropagation(); setAdjustingRow(row); }}
                               className="text-xs text-blue-400 hover:text-blue-600 mt-0.5 underline">
-                              ช่วยยอด
+                              + ช่วยยอด
                             </button>
                           )}
                         </td>
@@ -852,6 +1231,11 @@ export default function CommissionsPage() {
           row={adjustingRow} month={month}
           onClose={() => setAdjustingRow(null)}
           onDone={() => { setAdjustingRow(null); load(month); }} />
+      )}
+      {adjDetailRow && (
+        <AdjDetailModal
+          row={adjDetailRow} currentMonth={month}
+          onClose={() => setAdjDetailRow(null)} />
       )}
     </div>
   );

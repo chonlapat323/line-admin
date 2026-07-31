@@ -4,13 +4,15 @@ import { api } from "@/lib/api";
 
 const PRINT_STYLE = `
 @media print {
-  @page { size: A4; margin: 1.2cm; }
+  @page { size: A4 landscape; margin: 1.2cm; }
+  table { table-layout: auto !important; width: 100% !important; }
+  colgroup { display: none !important; }
   table thead tr { background: none !important; }
-  table thead th { color: #000 !important; border-bottom: 2px solid #000 !important; }
+  table thead th { color: #000 !important; border-bottom: 2px solid #000 !important; font-size: 12px !important; padding: 5px 8px !important; white-space: nowrap; }
   table tbody tr { background: none !important; }
-  table tbody td { color: #000 !important; }
+  table tbody td { color: #000 !important; font-size: 12px !important; padding: 5px 8px !important; }
   table tfoot tr { background: none !important; border-top: 2px solid #000 !important; }
-  table tfoot td { color: #000 !important; }
+  table tfoot td { color: #000 !important; font-size: 12px !important; padding: 5px 8px !important; }
   span[class*="rounded-full"] { background: none !important; color: #000 !important; border: none !important; padding: 0 !important; }
 }
 `;
@@ -18,7 +20,7 @@ const PRINT_STYLE = `
 interface User { id: string; fullName: string; email: string; role: string; }
 interface VisitRecord {
   id: string; shopName: string; province: string; district?: string;
-  customerType: string; visitType?: string; result?: string;
+  customerType: string; visitType?: string; tripType?: string; result?: string;
   details?: string; orderAmount?: number | null; createdAt: string;
 }
 interface SlipRecord {
@@ -29,14 +31,23 @@ interface SlipRecord {
 interface CommissionTier { min: number; max: number | null; rate: number; }
 interface CommissionSummaryRow {
   userId: string;
+  slipAmount: number;        // gross slips
+  totalDeducted: number;     // หักคืนหนี้ผ่าน slip เดือนนี้
+  adjustThisMonth: number;
+  adjustCarryover: number;
   totalAmount: number;
-  adjustment: number;
   outstandingDebt: number;
   reachedThreshold: boolean;
   commission: number;
   visitCount: number;
   pendingCount: number;
 }
+
+const VISIT_TYPE_LABEL: Record<string, string> = {
+  tak: "ทัก",
+  dem: "เดม",
+  tel: "โทร",
+};
 
 const RESULT_LABEL: Record<string, { label: string; color: string }> = {
   buy:       { label: "ซื้อ",   color: "bg-green-50 text-green-700" },
@@ -81,6 +92,9 @@ export default function ReportsPage() {
   const [commSummaryRow, setCommSummaryRow] = useState<CommissionSummaryRow | null>(null);
   const [adjLogs, setAdjLogs] = useState<any[]>([]);
   const [showAdjLog, setShowAdjLog] = useState(false);
+  const [showDebtSlips, setShowDebtSlips] = useState(false);
+  const [showDebtDetail, setShowDebtDetail] = useState(false);
+  const [debtDetailLogs, setDebtDetailLogs] = useState<any[]>([]);
 
   const [previewImg, setPreviewImg] = useState<string | null>(null);
 
@@ -119,8 +133,9 @@ export default function ReportsPage() {
     setSlips([]);
     setCommSummaryRow(null);
     const [y, m] = commMonth.split("-").map(Number);
-    const df = new Date(y, m - 1, 1).toISOString().split("T")[0];
-    const dt = new Date(y, m, 0).toISOString().split("T")[0];
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const df = `${y}-${pad(m)}-01`;
+    const dt = `${y}-${pad(m)}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
     Promise.all([
       api.getSlipSubmissions({ filterUserId: selectedUserId, limit: 1000, dateFrom: df, dateTo: dt }),
       api.getCommissionSummary(commMonth),
@@ -134,8 +149,15 @@ export default function ReportsPage() {
 
   function openAdjLog() {
     api.getUserAdjustments(selectedUserId).then((data: any[]) => {
-      setAdjLogs(data.filter((a) => a.month === commMonth && a.amount > 0));
+      setAdjLogs(data.filter((a) => a.amount > 0));
       setShowAdjLog(true);
+    }).catch(console.error);
+  }
+
+  function openDebtDetail() {
+    api.getUserAdjustments(selectedUserId).then((data: any[]) => {
+      setDebtDetailLogs(data);
+      setShowDebtDetail(true);
     }).catch(console.error);
   }
 
@@ -179,6 +201,7 @@ export default function ReportsPage() {
   }, [slips, shopSearch, dateFrom, dateTo, minAmt, maxAmt]);
 
   const slipTotal = filteredSlips.reduce((s, r) => s + (r.amount ?? 0), 0);
+  const totalDeducted = filteredSlips.reduce((s, r) => s + (r.debtDeducted ?? 0), 0);
   const commSlips = filteredSlips.filter((s) => s.slipStatus === "verified" || s.slipStatus === "approved");
   const commTotal = commSlips.reduce((s, r) => s + (r.amount ?? 0), 0);
   const { breakdown: tierBreakdown, total: commAmount } = calcTierCommission(commTotal, tiers);
@@ -211,9 +234,18 @@ export default function ReportsPage() {
       {/* Center */}
       <div className="flex-1 min-w-0 space-y-4">
         {/* Print header */}
-        <div className="hidden print:block mb-4">
-          <h2 className="text-lg font-bold text-gray-900">{selectedUser?.fullName ?? ""}</h2>
-          <p className="text-sm text-gray-500">{new Date().toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}</p>
+        <div className="hidden print:block mb-5 border-b-2 border-black pb-3">
+          <p className="text-xs text-gray-500 mb-1">{tab === "commissions" ? "รายงานค่าคอม" : "รายงานออกทริป"}</p>
+          <h2 className="text-xl font-bold text-gray-900">{selectedUser?.fullName ?? ""}</h2>
+          <div className="flex gap-6 mt-1 text-xs text-gray-500">
+            {tab === "commissions"
+              ? <span>เดือน: {new Date(commMonth + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" })}</span>
+              : (dateFrom || dateTo) && (
+                  <span>ช่วงวันที่: {dateFrom ? new Date(dateFrom).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "—"} ถึง {dateTo ? new Date(dateTo).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "—"}</span>
+                )
+            }
+            <span>วันที่จัดทำ: {new Date().toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}</span>
+          </div>
         </div>
 
         {/* Header + tabs */}
@@ -273,51 +305,59 @@ export default function ReportsPage() {
               {tab === "visits" && (
                 <>
                   <colgroup>
-                    <col style={{ width: "2.5rem" }} />
-                    <col />
-                    <col style={{ width: "7rem" }} />
+                    <col style={{ width: "2rem" }} />
+                    <col style={{ width: "6.5rem" }} />
+                    <col style={{ width: "13rem" }} />
                     <col style={{ width: "5rem" }} />
-                    <col style={{ width: "4.5rem" }} />
+                    <col style={{ width: "4rem" }} />
+                    <col style={{ width: "5.5rem" }} />
                     <col style={{ width: "7rem" }} />
-                    <col style={{ width: "7rem" }} />
+                    <col />
                   </colgroup>
                   <thead>
                     <tr className="border-b border-gray-100 bg-blue-600">
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">#</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">ชื่อร้าน</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">จังหวัด</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">ลูกค้า</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">ผล</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-white">ยอด (บาท)</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">วันที่</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-white">#</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-white">วันที่ทำภารกิจ</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-white">ชื่อร้าน</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-white">ภารกิจ</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-white print:hidden">ลูกค้า</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-white">ผล</th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold text-white">เปิดบิล (บาท)</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-white">note</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {!selectedUserId && <tr><td colSpan={7} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
-                    {selectedUserId && loading && <tr><td colSpan={7} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
-                    {selectedUserId && !loading && filteredVisits.length === 0 && <tr><td colSpan={7} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
+                    {!selectedUserId && <tr><td colSpan={8} className="text-center py-20 text-gray-400 text-sm">เลือกชื่อเซลจากรายการด้านซ้าย</td></tr>}
+                    {selectedUserId && loading && <tr><td colSpan={8} className="text-center py-20 text-gray-400">กำลังโหลด...</td></tr>}
+                    {selectedUserId && !loading && filteredVisits.length === 0 && <tr><td colSpan={8} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
                     {!loading && filteredVisits.map((v, i) => {
                       const r = RESULT_LABEL[v.result ?? ""] ?? { label: v.result ?? "—", color: "bg-gray-100 text-gray-500" };
+                      const isBkk = v.province?.includes("กรุงเทพ") || v.province?.includes("กทม");
+                      const locationLabel = isBkk
+                        ? v.district ? `${v.district} - กทม.` : "กทม."
+                        : v.province;
                       return (
                         <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                          <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}.</td>
-                          <td className="px-4 py-3 font-medium text-gray-800">
-                            {v.shopName}
-                            {v.district && <span className="text-xs text-gray-400 block">{v.district}</span>}
+                          <td className="px-3 py-2.5 text-gray-400 text-xs">{i + 1}.</td>
+                          <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">
+                            {new Date(v.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{v.province}</td>
-                          <td className="px-4 py-3 text-sm text-gray-800">
+                          <td className="px-3 py-2.5">
+                            <p className="font-medium text-gray-800 text-sm">{v.shopName}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{locationLabel}</p>
+                          </td>
+                          <td className="px-3 py-2.5 text-xs text-gray-600">{VISIT_TYPE_LABEL[v.visitType ?? ""] || VISIT_TYPE_LABEL[v.tripType ?? ""] || v.visitType || v.tripType || "—"}</td>
+                          <td className="px-3 py-2.5 text-xs text-gray-800 print:hidden">
                             {v.customerType === "new" || v.customerType === "ใหม่" ? "ใหม่" : "เก่า"}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-800">
-                            {r.label}
+                          <td className="px-3 py-2.5 text-xs">
+                            <span className={`${r.color} px-2 py-0.5 rounded-full font-semibold print:hidden`}>{r.label}</span>
+                            <span className="hidden print:inline text-gray-800">{r.label}</span>
                           </td>
-                          <td className="px-4 py-3 text-right font-semibold text-gray-800 tabular-nums">
+                          <td className="px-3 py-2.5 text-right font-semibold text-gray-800 tabular-nums text-sm">
                             {v.orderAmount ? v.orderAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 }) : "—"}
                           </td>
-                          <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                            {new Date(v.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
-                          </td>
+                          <td className="px-3 py-2.5 text-xs text-gray-400">{v.details || ""}</td>
                         </tr>
                       );
                     })}
@@ -325,10 +365,12 @@ export default function ReportsPage() {
                   {!loading && filteredVisits.length > 0 && (
                     <tfoot>
                       <tr className="border-t-2 border-gray-200 bg-gray-50">
-                        <td colSpan={6} className="px-4 py-3 text-xs font-semibold text-gray-500">{filteredVisits.length} รายการ</td>
-                        <td className="px-4 py-3 text-right font-bold text-gray-800 tabular-nums">
+                        <td colSpan={5} className="px-3 py-3 text-xs font-semibold text-gray-500 print:hidden">{filteredVisits.length} รายการ</td>
+                        <td colSpan={4} className="px-3 py-3 text-xs font-semibold text-gray-500 hidden print:table-cell">{filteredVisits.length} รายการ</td>
+                        <td className="px-3 py-3 text-right font-bold text-gray-800 tabular-nums">
                           {visitTotalAmt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                         </td>
+                        <td />
                       </tr>
                     </tfoot>
                   )}
@@ -341,11 +383,11 @@ export default function ReportsPage() {
                   <thead>
                     <tr className="border-b border-gray-100 bg-blue-600">
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">#</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">วันที่</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">ชื่อร้าน</th>
                       <th className="text-right px-4 py-3 text-xs font-semibold text-white">ยอด (บาท)</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white">หมายเหตุ</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">วันที่</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-white">สถานะ</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-white print:hidden">สถานะ</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-white print:hidden">สลิป</th>
                     </tr>
                   </thead>
@@ -358,15 +400,22 @@ export default function ReportsPage() {
                       return (
                         <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                           <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}.</td>
-                          <td className="px-4 py-3 font-medium text-gray-800">{s.shopName}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-gray-800 tabular-nums">
-                            {s.amount != null ? s.amount.toLocaleString("th-TH", { minimumFractionDigits: 2 }) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{s.details || "—"}</td>
                           <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                             {new Date(s.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 font-medium text-gray-800">{s.shopName}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            <p className="font-semibold text-gray-800">
+                              {s.amount != null ? s.amount.toLocaleString("th-TH", { minimumFractionDigits: 2 }) : "—"}
+                            </p>
+                            {(s.debtDeducted ?? 0) > 0 && (
+                              <p className="text-xs text-rose-500 mt-0.5">
+                                หักหนี้ −{s.debtDeducted.toLocaleString("th-TH")}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{s.details || "—"}</td>
+                          <td className="px-4 py-3 print:hidden">
                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
                           </td>
                           <td className="px-4 py-3 print:hidden">
@@ -385,7 +434,8 @@ export default function ReportsPage() {
                         <td className="px-4 py-3 text-right font-bold text-gray-800 tabular-nums">
                           {slipTotal.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                         </td>
-                        <td colSpan={4} />
+                        <td colSpan={2} className="print:hidden" />
+                        <td colSpan={2} className="hidden print:table-cell" />
                       </tr>
                     </tfoot>
                   )}
@@ -404,47 +454,67 @@ export default function ReportsPage() {
             {commSummaryRow ? (
               <table className="w-full text-sm">
                 <tbody>
+                  {/* ยอดสลิปรวม */}
                   <tr className="border-b border-gray-50">
-                    <td className="px-5 py-3 text-gray-500">ยอดสลิปสุทธิ (หักหนี้แล้ว)</td>
+                    <td className="px-5 py-3 text-gray-500">ยอดสลิปรวม</td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-800 tabular-nums">
-                      ฿{(commSummaryRow.totalAmount - (commSummaryRow.adjustment ?? 0)).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                      ฿{commSummaryRow.slipAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
-                  {(commSummaryRow.adjustment ?? 0) > 0 && (
-                    <tr className="border-b border-gray-50 hover:bg-blue-50/50 cursor-pointer" onClick={openAdjLog}>
-                      <td className="px-5 py-3 text-blue-600 flex items-center gap-1.5">
-                        + ยอดช่วยยอด (admin)
-                        <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">ดูรายละเอียด</span>
+                  {/* - หักคืนยอดค้าง */}
+                  {commSummaryRow.totalDeducted > 0 && (
+                    <tr className="border-b border-gray-50">
+                      <td className="px-5 py-3 text-rose-600">
+                        <span className="flex items-center gap-1.5 flex-wrap">
+                          − หักคืนยอดค้าง
+                          {commSummaryRow.outstandingDebt === 0
+                            ? <span className="text-xs text-gray-700">(ชำระครบแล้ว)</span>
+                            : <span className="text-xs text-orange-500">(ค้างอีก ฿{commSummaryRow.outstandingDebt.toLocaleString("th-TH")})</span>}
+                          <button onClick={() => setShowDebtSlips(true)} className="print:hidden text-xs bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full hover:bg-rose-200 transition-colors">ดู slip</button>
+                          <button onClick={openDebtDetail} className="print:hidden text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full hover:bg-orange-200 transition-colors">ดูรายละเอียด</button>
+                        </span>
                       </td>
-                      <td className="px-5 py-3 text-right font-semibold text-blue-600 tabular-nums">
-                        +฿{commSummaryRow.adjustment.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                      <td className="px-5 py-3 text-right font-semibold text-rose-600 tabular-nums align-top">
+                        −฿{commSummaryRow.totalDeducted.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   )}
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <td className="px-5 py-3 font-bold text-gray-800">รวมยอดขาย</td>
-                    <td className="px-5 py-3 text-right font-bold text-gray-800 tabular-nums">
+                  {/* + ช่วยยอดเดือนนี้ */}
+                  {commSummaryRow.adjustThisMonth > 0 && (
+                    <tr className="border-b border-gray-50 hover:bg-blue-50/50 cursor-pointer print:cursor-default" onClick={openAdjLog}>
+                      <td className="px-5 py-3 text-blue-500">
+                        <span className="flex items-center gap-1.5">
+                          + ยอดช่วยเดือนนี้
+                          <span className="print:hidden text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">ดูรายละเอียด</span>
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-right font-semibold text-blue-500 tabular-nums">
+                        +฿{commSummaryRow.adjustThisMonth.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
+                  {/* = ยอดคำนวณ */}
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <td className="px-5 py-3 font-bold text-gray-800">= ยอดคำนวณ</td>
+                    <td className="px-5 py-3 text-right font-bold text-gray-900 tabular-nums">
                       ฿{commSummaryRow.totalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
-                  <tr className="border-b border-gray-50">
-                    <td className="px-5 py-3 text-gray-500">สถานะ</td>
-                    <td className="px-5 py-3 text-right">
-                      {commSummaryRow.reachedThreshold
-                        ? <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">✓ ถึงเป้า</span>
-                        : <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">✗ ไม่ถึงเป้า</span>}
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-50">
+                  {/* ค่าคอม */}
+                  <tr className={commSummaryRow.outstandingDebt > 0 ? "border-b border-gray-50" : ""}>
                     <td className="px-5 py-3 font-semibold text-green-700">ค่าคอม</td>
                     <td className="px-5 py-3 text-right font-bold text-green-700 tabular-nums text-base">
                       ฿{commSummaryRow.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
+                  {/* ยอดค้างที่ยังเหลือ (ถ้ายังไม่ครบ) */}
                   {commSummaryRow.outstandingDebt > 0 && (
                     <tr>
-                      <td className="px-5 py-3 text-orange-600">ยอดค้างคงเหลือ</td>
-                      <td className="px-5 py-3 text-right font-semibold text-orange-600 tabular-nums">
+                      <td className="px-5 py-3 text-orange-500 text-sm">
+                        ยอดค้างคงเหลือ
+                        <p className="text-xs text-gray-400 font-normal mt-0.5">หักคืนต่อเนื่องจาก slip เดือนถัดไป</p>
+                      </td>
+                      <td className="px-5 py-3 text-right font-semibold text-orange-500 tabular-nums align-top">
                         ฿{commSummaryRow.outstandingDebt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
@@ -466,24 +536,6 @@ export default function ReportsPage() {
               <div><p className="text-xs text-gray-500">ซื้อ</p><p className="text-2xl font-bold text-gray-800">{visitBuyCount}</p></div>
               <div><p className="text-xs text-gray-500">ไม่ซื้อ</p><p className="text-2xl font-bold text-gray-800">{visitNoBuyCount}</p></div>
               <div><p className="text-xs text-gray-500">ยอดขายรวม (บาท)</p><p className="text-2xl font-bold">{visitTotalAmt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p></div>
-            </div>
-          </div>
-        )}
-        {tab === "commissions" && filteredSlips.length > 0 && (
-          <div className="hidden print:block mt-6 pt-4 border-t-2 border-gray-300">
-            <p className="text-sm font-semibold text-gray-500 mb-3">สรุปค่าคอม</p>
-            <div className="flex gap-10 flex-wrap">
-              <div><p className="text-xs text-gray-500">ยอดสลิปรวม (บาท)</p><p className="text-2xl font-bold">{slipTotal.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p></div>
-              {tiers.length > 0
-                ? tierBreakdown.filter((t) => t.commission > 0).map((t, i) => (
-                  <div key={i}><p className="text-xs text-gray-500">คอม {t.rate}%</p><p className="text-2xl font-bold">{t.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p></div>
-                ))
-                : flatRate > 0 && <div><p className="text-xs text-gray-500">คอม {flatRate}%</p><p className="text-2xl font-bold">{flatComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p></div>
-              }
-              <div className="border-l border-gray-300 pl-10">
-                <p className="text-xs text-gray-500">รวมค่าคอม (บาท)</p>
-                <p className="text-2xl font-bold text-green-700">{(tiers.length > 0 ? commAmount : flatComm).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
-              </div>
             </div>
           </div>
         )}
@@ -584,8 +636,8 @@ export default function ReportsPage() {
                   <p className="text-2xl font-bold text-gray-800 tabular-nums">
                     {(commSummaryRow?.totalAmount ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                   </p>
-                  {(commSummaryRow?.adjustment ?? 0) > 0 && (
-                    <p className="text-xs text-blue-500 mt-0.5">รวมช่วยยอด +฿{commSummaryRow!.adjustment.toLocaleString("th-TH")}</p>
+                  {(commSummaryRow?.adjustThisMonth ?? 0) > 0 && (
+                    <p className="text-xs text-blue-500 mt-0.5">รวมช่วยยอด +฿{commSummaryRow!.adjustThisMonth.toLocaleString("th-TH")}</p>
                   )}
                 </div>
                 <div className="pt-2 border-t border-pink-200">
@@ -603,6 +655,7 @@ export default function ReportsPage() {
                     <p className="text-lg font-bold text-orange-600 tabular-nums">
                       ฿{commSummaryRow!.outstandingDebt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                     </p>
+                    <p className="text-xs text-gray-400 mt-0.5">หักต่อเดือนหน้า</p>
                   </div>
                 )}
               </>
@@ -629,33 +682,166 @@ export default function ReportsPage() {
               </div>
               <button onClick={() => setShowAdjLog(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5">
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {adjLogs.length === 0
                 ? <p className="text-center text-sm text-gray-400 py-8">ไม่มีข้อมูล</p>
-                : (
-                  <div className="space-y-3">
-                    {adjLogs.map((log) => (
-                      <div key={log.id} className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                : (() => {
+                    const fmtMonth = (m: string) => new Date(m + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" });
+                    const thisMonthLogs = adjLogs.filter((a) => a.month === commMonth);
+                    const carryoverLogs = adjLogs.filter((a) => a.month < commMonth);
+                    const renderLog = (log: any, bg: string, textColor: string) => (
+                      <div key={log.id} className={`rounded-xl border px-4 py-3 ${bg}`}>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-gray-500">เดือน {log.month}</span>
-                          <span className="text-sm font-bold text-blue-700 tabular-nums">+฿{log.amount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                          <span className="text-xs font-semibold text-gray-500">{fmtMonth(log.month)}</span>
+                          <span className={`text-sm font-bold tabular-nums ${textColor}`}>+฿{log.amount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
                         </div>
-                        {log.note && <p className="text-xs text-gray-500 mt-1">{log.note}</p>}
+                        {log.note && <p className="text-xs text-gray-600 mt-1">{log.note}</p>}
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-xs text-gray-400">โดย {log.admin?.fullName ?? "—"}</span>
                           <span className="text-xs text-gray-400">
-                            {new Date(log.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            {new Date(log.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
                           </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )
+                    );
+                    return (
+                      <>
+                        {thisMonthLogs.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-blue-600 mb-2 uppercase tracking-wide">ช่วยเดือนนี้</p>
+                            <div className="space-y-2">{thisMonthLogs.map((l) => renderLog(l, "border-blue-100 bg-blue-50", "text-blue-700"))}</div>
+                          </div>
+                        )}
+                        {carryoverLogs.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-amber-600 mb-2 uppercase tracking-wide">ยกมาจากเดือนก่อน</p>
+                            <div className="space-y-2">{carryoverLogs.map((l) => renderLog(l, "border-amber-100 bg-amber-50", "text-amber-700"))}</div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()
               }
             </div>
             <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-between items-center">
               <span className="text-xs text-gray-500">{adjLogs.length} รายการ</span>
               <span className="text-sm font-bold text-blue-700">รวม +฿{adjLogs.reduce((s, a) => s + a.amount, 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Debt detail popup — breakdown by month */}
+      {showDebtDetail && (() => {
+        const prevDebts = debtDetailLogs.filter(a => a.amount > 0 && a.month < commMonth);
+        const repayments = debtDetailLogs.filter(a => a.amount < 0);
+        const totalDebt = prevDebts.reduce((s, a) => s + a.amount, 0);
+        const totalRepaid = repayments.reduce((s, a) => s + Math.abs(a.amount), 0);
+        const remaining = Math.max(0, totalDebt - totalRepaid);
+        const thMonth = (m: string) => new Date(m + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" });
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowDebtDetail(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div>
+                  <h3 className="font-bold text-gray-800">รายละเอียดยอดค้างสะสม</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {selectedUser?.fullName} · ณ {thMonth(commMonth)}
+                  </p>
+                </div>
+                <button onClick={() => setShowDebtDetail(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {/* ยอดค้างแยกตามเดือน */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">ยอดที่ค้างชำระ</p>
+                  {prevDebts.length === 0
+                    ? <p className="text-sm text-gray-400">ไม่มียอดค้าง</p>
+                    : prevDebts.map(a => (
+                        <div key={a.id} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{thMonth(a.month)}</p>
+                            {a.note && <p className="text-xs text-gray-400">{a.note}</p>}
+                          </div>
+                          <span className="text-sm font-semibold text-rose-600 tabular-nums">+฿{a.amount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      ))
+                  }
+                </div>
+                {/* ยอดหักคืนแล้ว */}
+                {repayments.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">ชำระคืนแล้ว</p>
+                    {repayments.map(a => (
+                      <div key={a.id} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">{thMonth(a.month)}</p>
+                          {a.note && <p className="text-xs text-gray-400">{a.note}</p>}
+                        </div>
+                        <span className="text-sm font-semibold text-green-600 tabular-nums">−฿{Math.abs(a.amount).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl space-y-1.5">
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>ยอดค้างรวม</span>
+                  <span className="tabular-nums font-semibold text-rose-600">฿{totalDebt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>ชำระไปแล้ว</span>
+                  <span className="tabular-nums font-semibold text-green-600">−฿{totalRepaid.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold border-t border-gray-200 pt-1.5 mt-1">
+                  <span className={remaining === 0 ? "text-green-700" : "text-orange-600"}>คงเหลือ</span>
+                  <span className={`tabular-nums ${remaining === 0 ? "text-green-700" : "text-orange-600"}`}>
+                    {remaining === 0 ? "ชำระครบแล้ว" : `฿${remaining.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Debt slips popup */}
+      {showDebtSlips && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowDebtSlips(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="font-bold text-gray-800">Slip ที่ใช้หักคืนยอดค้าง</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {selectedUser?.fullName} · {new Date(commMonth + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" })}
+                </p>
+              </div>
+              <button onClick={() => setShowDebtSlips(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {filteredSlips.filter((s) => (s.debtDeducted ?? 0) > 0).length === 0
+                ? <p className="text-center text-sm text-gray-400 py-8">ไม่มีข้อมูล</p>
+                : filteredSlips.filter((s) => (s.debtDeducted ?? 0) > 0).map((slip, i) => (
+                    <div key={slip.id} className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-gray-800">{i + 1}. {slip.shopName}</span>
+                        <span className="text-sm font-bold text-gray-700 tabular-nums">฿{(slip.amount ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1.5">
+                        <span className="text-xs text-rose-600 font-semibold">หักคืน −฿{slip.debtDeducted.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(slip.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+              }
+            </div>
+            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-between items-center">
+              <span className="text-xs text-gray-500">{filteredSlips.filter((s) => (s.debtDeducted ?? 0) > 0).length} slip</span>
+              <span className="text-sm font-bold text-rose-600">
+                หักรวม −฿{filteredSlips.reduce((s, r) => s + (r.debtDeducted ?? 0), 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+              </span>
             </div>
           </div>
         </div>
