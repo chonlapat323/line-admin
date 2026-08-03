@@ -335,7 +335,7 @@ export default function ReportsPage() {
                       const r = RESULT_LABEL[v.result ?? ""] ?? { label: v.result ?? "—", color: "bg-gray-100 text-gray-500" };
                       const isBkk = v.province?.includes("กรุงเทพ") || v.province?.includes("กทม");
                       const locationLabel = isBkk
-                        ? v.district ? `${v.district} - กทม.` : "กทม."
+                        ? v.district ? `${v.district} กทม.` : "กทม."
                         : v.province;
                       return (
                         <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50/50">
