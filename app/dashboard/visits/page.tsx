@@ -74,6 +74,8 @@ export default function VisitsPage() {
   const { toast } = useToast();
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [canFilterBySales, setCanFilterBySales] = useState(false);
+  const [users, setUsers] = useState<{ id: string; fullName: string }[]>([]);
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -84,7 +86,15 @@ export default function VisitsPage() {
     const perm = perms.find((p: any) => p.menu === "visits");
     const canView = isLegacyAdmin || (perm?.canView ?? false);
     if (!canView) { window.location.replace("/dashboard"); return; }
+    const viewAll = isLegacyAdmin || ["admin", "manager"].includes(parsed.role) ||
+      (parsed.roleLabel && ["แอดมิน", "ผู้จัดการเซล์"].includes(parsed.roleLabel));
+    setCanFilterBySales(viewAll);
     setAuthorized(true);
+    if (viewAll) {
+      api.getUsers().then((data: any[]) =>
+        setUsers(data.map((u: any) => ({ id: u.id, fullName: u.fullName })))
+      ).catch(() => {});
+    }
   }, []);
 
   // Filters
@@ -93,6 +103,7 @@ export default function VisitsPage() {
   const [customTo, setCustomTo] = useState("");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterUserId, setFilterUserId] = useState("");
   const [resultFilter, setResultFilter] = useState("");
   const [tripFilter, setTripFilter] = useState("");
   const [visitTypeFilter, setVisitTypeFilter] = useState("");
@@ -121,7 +132,7 @@ export default function VisitsPage() {
   }, [search]);
 
   // Fetch whenever filter or page changes
-  const filterKey = `${period}|${customFrom}|${customTo}|${provinceFilter}|${resultFilter}|${tripFilter}|${visitTypeFilter}|${customerFilter}|${debouncedSearch}|${pageSize}`;
+  const filterKey = `${period}|${customFrom}|${customTo}|${provinceFilter}|${resultFilter}|${tripFilter}|${visitTypeFilter}|${customerFilter}|${debouncedSearch}|${filterUserId}|${pageSize}`;
   const filterKeyRef = useRef(filterKey);
 
   useEffect(() => {
@@ -150,6 +161,7 @@ export default function VisitsPage() {
         visitType: visitTypeFilter || undefined,
         customerType: customerFilter || undefined,
         search: debouncedSearch || undefined,
+        filterUserId: filterUserId || undefined,
         ...dateRange,
       }),
       api.getVisitProvinceStats(dateRange),
@@ -302,6 +314,12 @@ export default function VisitsPage() {
 
         {/* Row 2: Search + dropdowns */}
         <div className="flex gap-2 flex-wrap items-center">
+          {canFilterBySales && (
+            <select value={filterUserId} onChange={(e) => setFilterUserId(e.target.value)} className={selectCls(!!filterUserId)}>
+              <option value="">ทุกเซล</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+            </select>
+          )}
           <div className="relative flex-1 min-w-[180px] max-w-xs">
             <svg
               className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${search ? "text-green-500" : "text-gray-400"}`}
