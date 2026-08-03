@@ -490,20 +490,20 @@ export default function DashboardPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">วันที่</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">ร้านค้า</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">เซล</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ทริป</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">วันที่</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">ผล</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && Array.from({ length: 4 }).map((_, i) => (
                 <tr key={i}>
+                  <td className="px-5 py-3.5 hidden lg:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
                   <td className="px-5 py-3.5"><div className="h-3.5 w-32 bg-gray-200 animate-pulse rounded" /></td>
                   <td className="px-5 py-3.5 hidden md:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
                   <td className="px-5 py-3.5 hidden lg:table-cell"><div className="h-3.5 w-16 bg-gray-200 animate-pulse rounded" /></td>
-                  <td className="px-5 py-3.5 hidden lg:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
                   <td className="px-5 py-3.5"><div className="h-6 w-14 bg-gray-200 animate-pulse rounded-full" /></td>
                 </tr>
               ))}
@@ -516,6 +516,9 @@ export default function DashboardPage() {
               )}
               {!loading && recentVisits.map((v) => (
                 <tr key={v.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-5 py-3.5 text-gray-400 text-xs hidden lg:table-cell whitespace-nowrap">
+                    {formatThaiDate(v.createdAt)}
+                  </td>
                   <td className="px-5 py-3.5">
                     <p className="font-medium text-gray-800">{v.shopName}</p>
                     <p className="text-xs text-gray-400">{v.district ? `${v.province} · ${v.district}` : v.province}</p>
@@ -525,9 +528,6 @@ export default function DashboardPage() {
                   </td>
                   <td className="px-5 py-3.5 text-gray-400 text-xs hidden lg:table-cell">
                     {v.tripType ? TRIP_LABEL[v.tripType] : "—"}
-                  </td>
-                  <td className="px-5 py-3.5 text-gray-400 text-xs hidden lg:table-cell whitespace-nowrap">
-                    {formatThaiDate(v.createdAt)}
                   </td>
                   <td className="px-5 py-3.5">
                     <ResultBadge result={v.result} />
