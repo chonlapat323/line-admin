@@ -336,7 +336,7 @@ export default function SettingsPage() {
                   <div key={i} className="flex items-center gap-2">
                     <div className="flex-1 flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-500 min-w-0">
                       <span className="font-mono font-semibold text-gray-700 whitespace-nowrap">
-                        ฿{min.toLocaleString("th-TH")}
+                        {i > 0 ? ">" : ""}฿{min.toLocaleString("th-TH")}
                       </span>
                       <span>–</span>
                       {isLast ? (
