@@ -395,6 +395,7 @@ export default function VisitsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">วันที่</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">รูป</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">ร้านค้า</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">เซล</th>
@@ -402,13 +403,13 @@ export default function VisitsPage() {
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ภารกิจ</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ยอดสั่งซื้อ</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">ผลตอบรับ</th>
-              <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">วันที่</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {loading &&
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i}>
+                  <td className="px-5 py-4 hidden md:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
                   <td className="px-5 py-4"><div className="w-10 h-10 rounded-lg bg-gray-200 animate-pulse" /></td>
                   <td className="px-5 py-4"><div className="h-3.5 w-32 bg-gray-200 animate-pulse rounded" /></td>
                   <td className="px-5 py-4 hidden md:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
@@ -416,7 +417,6 @@ export default function VisitsPage() {
                   <td className="px-5 py-4 hidden lg:table-cell"><div className="h-5 w-12 bg-gray-200 animate-pulse rounded-full" /></td>
                   <td className="px-5 py-4 hidden lg:table-cell"><div className="h-5 w-16 bg-gray-200 animate-pulse rounded" /></td>
                   <td className="px-5 py-4"><div className="h-5 w-14 bg-gray-200 animate-pulse rounded-full" /></td>
-                  <td className="px-5 py-4 hidden md:table-cell"><div className="h-3.5 w-24 bg-gray-200 animate-pulse rounded" /></td>
                 </tr>
               ))}
             {!loading && pageData.total === 0 && (
@@ -435,6 +435,9 @@ export default function VisitsPage() {
             {!loading &&
               pagedVisits.map((v) => (
                 <tr key={v.id} className="hover:bg-green-50/40 transition-colors cursor-pointer" onClick={() => setSelectedVisit(v)}>
+                  <td className="px-5 py-4 text-gray-400 text-xs hidden md:table-cell whitespace-nowrap">
+                    {new Date(v.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
+                  </td>
                   <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                     {v.imageUrls?.[0] ? (
                       <button onClick={() => setPreviewImg(v.imageUrls[0])} className="focus:outline-none">
@@ -460,9 +463,6 @@ export default function VisitsPage() {
                     {v.result === "buy" && v.orderAmount != null ? `฿${v.orderAmount.toLocaleString("th-TH")}` : "-"}
                   </td>
                   <td className="px-5 py-4"><ResultBadge result={v.result} /></td>
-                  <td className="px-5 py-4 text-gray-400 text-xs hidden md:table-cell">
-                    {new Date(v.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
-                  </td>
                 </tr>
               ))}
           </tbody>
