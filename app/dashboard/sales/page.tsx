@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { api } from "@/lib/api";
 import { PERIOD_OPTIONS, Period, filterByDateRange, getDateRange } from "@/lib/date-filter";
+import { TRIP_LABEL, CUSTOMER_TYPE_OPTIONS } from "@/lib/labels";
 
 interface VisitRecord {
   id: string;
@@ -30,7 +31,6 @@ interface UserStat {
   visits: VisitRecord[];
 }
 
-const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน" };
 const RESULT_LABEL: Record<string, string> = { buy: "ซื้อ", no_buy: "ไม่ซื้อ", not_found: "ไม่พบ" };
 const PAGE_SIZE = 9;
 
@@ -404,8 +404,8 @@ export default function SalesPage() {
           { value: provinceFilter, set: setProvinceFilter, placeholder: "ทุกจังหวัด", options: provinces.map((p) => ({ value: p, label: p })) },
           { value: resultFilter, set: setResultFilter, placeholder: "ทุกผล", options: [{ value: "buy", label: "ซื้อ" }, { value: "no_buy", label: "ไม่ซื้อ" }, { value: "not_found", label: "ไม่พบ" }] },
           { value: tripFilter, set: setTripFilter, placeholder: "ทุกทริป", options: [{ value: "plan", label: "ตามแผน" }, { value: "off_plan", label: "นอกแผน" }] },
-          { value: visitTypeFilter, set: setVisitTypeFilter, placeholder: "ทุกภารกิจ", options: [{ value: "tak", label: "ทัก" }, { value: "dem", label: "เดม" }, { value: "tel", label: "โทร" }] },
-          { value: customerFilter, set: setCustomerFilter, placeholder: "ทุกลูกค้า", options: [{ value: "new", label: "ลูกค้าใหม่" }, { value: "existing", label: "ลูกค้าเก่า" }] },
+          { value: visitTypeFilter, set: setVisitTypeFilter, placeholder: "ทุกภารกิจ", options: [{ value: "tak", label: "เยี่ยมเยียน" }, { value: "dem", label: "เดม" }, { value: "tel", label: "โทร / LINE" }] },
+          { value: customerFilter, set: setCustomerFilter, placeholder: "ทุกลูกค้า", options: CUSTOMER_TYPE_OPTIONS },
         ].map(({ value, set, placeholder, options }) => (
           <select key={placeholder} value={value}
             onChange={(e) => { set(e.target.value); setPage(1); }}

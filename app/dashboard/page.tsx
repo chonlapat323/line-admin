@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import { PERIOD_OPTIONS, Period, filterByDateRange, formatThaiDate, getDateRange } from "@/lib/date-filter";
+import { TRIP_LABEL, RESULT_LABEL, MISSION_OPTIONS, CUSTOMER_TYPE_OPTIONS, CUSTOMER_TYPE_LABEL } from "@/lib/labels";
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface VisitRecord {
@@ -41,8 +42,6 @@ function getCurrentMonth() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const RESULT_LABEL: Record<string, string> = { buy: "ซื้อ", no_buy: "ไม่ซื้อ", not_found: "ไม่พบ" };
-const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน" };
 
 function ResultBadge({ result }: { result?: string }) {
   if (!result) return null;
@@ -289,8 +288,8 @@ export default function DashboardPage() {
           { value: userFilter, set: setUserFilter, placeholder: "ทุกเซล", options: userNames.map((n) => ({ value: n, label: n })) },
           { value: resultFilter, set: setResultFilter, placeholder: "ทุกผล", options: [{ value: "buy", label: "ซื้อ" }, { value: "no_buy", label: "ไม่ซื้อ" }, { value: "not_found", label: "ไม่พบ" }] },
           { value: tripFilter, set: setTripFilter, placeholder: "ทุกทริป", options: [{ value: "plan", label: "ตามแผน" }, { value: "off_plan", label: "นอกแผน" }] },
-          { value: visitTypeFilter, set: setVisitTypeFilter, placeholder: "ทุกภารกิจ", options: [{ value: "tak", label: "ทัก" }, { value: "dem", label: "เดม" }, { value: "tel", label: "โทร" }] },
-          { value: customerFilter, set: setCustomerFilter, placeholder: "ทุกลูกค้า", options: [{ value: "new", label: "ลูกค้าใหม่" }, { value: "existing", label: "ลูกค้าเก่า" }] },
+          { value: visitTypeFilter, set: setVisitTypeFilter, placeholder: "ทุกภารกิจ", options: MISSION_OPTIONS },
+          { value: customerFilter, set: setCustomerFilter, placeholder: "ทุกลูกค้า", options: CUSTOMER_TYPE_OPTIONS },
         ].map(({ value, set, placeholder, options }) => (
           <select key={placeholder} value={value} onChange={(e) => set(e.target.value)}
             className="text-sm border border-gray-200 rounded-xl bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 min-w-[110px]">

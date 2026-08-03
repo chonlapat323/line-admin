@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { api } from "@/lib/api";
+import { CUSTOMER_TYPE_LABEL } from "@/lib/labels";
 
 const PRINT_STYLE = `
 @media print {
@@ -348,7 +349,7 @@ export default function ReportsPage() {
                           </td>
                           <td className="px-3 py-2.5 text-xs text-gray-600">{VISIT_TYPE_LABEL[v.visitType ?? ""] || VISIT_TYPE_LABEL[v.tripType ?? ""] || v.visitType || v.tripType || "—"}</td>
                           <td className="px-3 py-2.5 text-xs text-gray-800 print:hidden">
-                            {v.customerType === "new" || v.customerType === "ใหม่" ? "ใหม่" : "เก่า"}
+                            {CUSTOMER_TYPE_LABEL[v.customerType] ?? v.customerType}
                           </td>
                           <td className="px-3 py-2.5 text-xs">
                             <span className={`${r.color} px-2 py-0.5 rounded-full font-semibold print:hidden`}>{r.label}</span>

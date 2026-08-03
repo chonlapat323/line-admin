@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import { getDateRange, PERIOD_OPTIONS, type Period } from "@/lib/date-filter";
+import { TRIP_LABEL, MISSION_LABEL, RESULT_LABEL, CUSTOMER_TYPE_LABEL, MISSION_OPTIONS, CUSTOMER_TYPE_OPTIONS } from "@/lib/labels";
 import type { ProvinceStats } from "@/components/visits-map";
 import { PROVINCE_CENTROIDS } from "@/lib/province-centroids";
 
@@ -36,9 +37,6 @@ interface VisitRecord {
 
 type PeriodFilter = Period | "all";
 
-const TRIP_LABEL: Record<string, string> = { plan: "ตามแผน", off_plan: "นอกแผน" };
-const MISSION_LABEL: Record<string, string> = { tak: "ทัก", dem: "เดม", tel: "โทร" };
-const RESULT_LABEL: Record<string, string> = { buy: "ซื้อ", no_buy: "ไม่ซื้อ", not_found: "ไม่พบ" };
 
 const PERIOD_OPTS: { value: PeriodFilter; label: string }[] = [
   { value: "all", label: "ทั้งหมด" },
@@ -358,15 +356,12 @@ export default function VisitsPage() {
 
           <select value={visitTypeFilter} onChange={(e) => setVisitTypeFilter(e.target.value)} className={selectCls(!!visitTypeFilter)}>
             <option value="">ทุกภารกิจ</option>
-            <option value="tak">ทัก</option>
-            <option value="dem">เดม</option>
-            <option value="tel">โทร</option>
+            {MISSION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
 
           <select value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)} className={selectCls(!!customerFilter)}>
             <option value="">ทุกลูกค้า</option>
-            <option value="new">ลูกค้าใหม่</option>
-            <option value="existing">ลูกค้าเก่า</option>
+            {CUSTOMER_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
       </div>
@@ -532,7 +527,7 @@ export default function VisitsPage() {
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3">
                   <p className="text-xs text-gray-400 mb-1">ลูกค้า</p>
-                  <p className="font-medium text-gray-700">{selectedVisit.customerType || "-"}</p>
+                  <p className="font-medium text-gray-700">{CUSTOMER_TYPE_LABEL[selectedVisit.customerType] ?? selectedVisit.customerType ?? "-"}</p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3">
                   <p className="text-xs text-gray-400 mb-1">ภารกิจ</p>
