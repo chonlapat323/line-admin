@@ -1094,6 +1094,7 @@ export default function CommissionsPage() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-8">#</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">เดือน</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">เซล</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">จำนวนสลิป</th>
@@ -1104,10 +1105,10 @@ export default function CommissionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">กำลังคำนวณ...</td></tr>}
+                  {loading && <tr><td colSpan={9} className="text-center py-12 text-gray-400 text-sm">กำลังคำนวณ...</td></tr>}
                   {!loading && filtered.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="text-center py-16">
+                      <td colSpan={9} className="text-center py-16">
                         <p className="text-2xl mb-2">📊</p>
                         <p className="text-sm font-semibold text-gray-600">ไม่มีข้อมูล</p>
                       </td>
@@ -1121,6 +1122,9 @@ export default function CommissionsPage() {
                       <tr key={row.userId} onClick={() => goBreakdown(row.userId, row.user.fullName)}
                         className="border-b border-gray-50 hover:bg-green-50/40 cursor-pointer transition-colors">
                         <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
+                        <td className="px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap">
+                          {MONTH_NAMES_TH[parseInt(month.split("-")[1]) - 1]} {parseInt(month.split("-")[0]) + 543}
+                        </td>
                         <td className="px-4 py-3">
                           <p className="font-semibold text-gray-800">{row.user.fullName}</p>
                           <p className="text-xs text-gray-400">{row.user.email}</p>
