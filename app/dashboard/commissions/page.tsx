@@ -745,12 +745,23 @@ function AdjDetailModal({ row, currentMonth, onClose }: {
 }
 
 // ─── Report Tab ──────────────────────────────────────────────────────────────
-function ReportTab({ data, payments, month, onMonthChange }: {
-  data: CommissionData | null;
+function ReportTab({ payments: parentPayments, defaultMonth }: {
   payments: Payment[];
-  month: string;
-  onMonthChange: (m: string) => void;
+  defaultMonth: string;
 }) {
+  const [month, setMonth] = useState(defaultMonth);
+  const [data, setData] = useState<CommissionData | null>(null);
+  const [payments, setPayments] = useState<Payment[]>(parentPayments);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([api.getCommissionSummary(month), api.getCommissionPayments(month)])
+      .then(([summary, pays]) => { setData(summary); setPayments(pays); })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [month]);
+
   const paidSet = useMemo(() => new Set(payments.map((p) => p.userId)), [payments]);
   // รายงานแสดงเฉพาะคนที่ถึงเป้าเท่านั้น
   const rows = (data?.summary ?? []).filter((r) => r.reachedThreshold);
@@ -774,7 +785,7 @@ function ReportTab({ data, payments, month, onMonthChange }: {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <MonthPicker value={month} onChange={onMonthChange} />
+          <MonthPicker value={month} onChange={setMonth} />
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-xl transition-colors"
@@ -819,9 +830,14 @@ function ReportTab({ data, payments, month, onMonthChange }: {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && (
+              {loading && (
                 <tr>
-                  <td colSpan={10} className="text-center py-16 text-gray-400 text-sm">ไม่มีข้อมูล</td>
+                  <td colSpan={9} className="text-center py-16 text-gray-400 text-sm">กำลังโหลด...</td>
+                </tr>
+              )}
+              {!loading && rows.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="text-center py-16 text-gray-400 text-sm">ไม่มีข้อมูล</td>
                 </tr>
               )}
               {rows.map((row, i) => {
@@ -1201,7 +1217,7 @@ export default function CommissionsPage() {
 
       {/* Tab: Report */}
       {activeTab === "report" && (
-        <ReportTab data={data} payments={payments} month={month} onMonthChange={setMonth} />
+        <ReportTab payments={payments} defaultMonth={month} />
       )}
 
       {/* Tab: Overdue */}
