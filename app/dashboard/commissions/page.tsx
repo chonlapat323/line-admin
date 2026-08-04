@@ -751,7 +751,8 @@ function ReportTab({ data, payments, month }: {
   month: string;
 }) {
   const paidSet = useMemo(() => new Set(payments.map((p) => p.userId)), [payments]);
-  const rows = data?.summary ?? [];
+  // รายงานแสดงเฉพาะคนที่ถึงเป้าเท่านั้น
+  const rows = (data?.summary ?? []).filter((r) => r.reachedThreshold);
   const monthLabel = new Date(month + "-01").toLocaleDateString("th-TH", { month: "long", year: "numeric" });
 
   const totalSlip      = rows.reduce((s, r) => s + r.slipAmount, 0);
@@ -811,7 +812,6 @@ function ReportTab({ data, payments, month }: {
                 <th className="text-right px-3 py-3 text-xs font-semibold text-amber-600">ค่าคอม</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-orange-500">ยอดค้าง*</th>
                 <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-gray-500">สถานะ</th>
               </tr>
             </thead>
             <tbody>
@@ -827,7 +827,12 @@ function ReportTab({ data, payments, month }: {
                   <tr key={row.userId} className="border-b border-gray-50 print:border-gray-200">
                     <td className="px-3 py-3 text-xs text-gray-400">{i + 1}</td>
                     <td className="px-3 py-3">
-                      <p className="font-semibold text-gray-800">{row.user.fullName}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-800">{row.user.fullName}</p>
+                        {paid
+                          ? <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">จ่ายแล้ว</span>
+                          : <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">รอจ่าย</span>}
+                      </div>
                       <p className="text-xs text-gray-400 print:hidden">{row.user.email}</p>
                     </td>
                     {/* ยอดสลิปสุทธิ */}
@@ -876,14 +881,6 @@ function ReportTab({ data, payments, month }: {
                             {row.reachedThreshold ? "ยังไม่กรอก" : "—"}
                           </span>}
                     </td>
-                    {/* สถานะ */}
-                    <td className="px-3 py-3 text-center text-xs font-semibold">
-                      {row.reachedThreshold
-                        ? paid
-                          ? <span className="text-green-600">จ่ายแล้ว</span>
-                          : <span className="text-amber-600">รอจ่าย</span>
-                        : <span className="text-gray-300">ไม่ถึงเป้า</span>}
-                    </td>
                   </tr>
                 );
               })}
@@ -904,7 +901,7 @@ function ReportTab({ data, payments, month }: {
                   <td className="px-3 py-3 text-right font-semibold text-orange-500">
                     {totalDebt > 0 ? `฿${totalDebt.toLocaleString("th-TH")}` : "—"}
                   </td>
-                  <td colSpan={2} />
+                  <td colSpan={1} />
                 </tr>
               </tfoot>
             )}
@@ -1130,7 +1127,7 @@ export default function CommissionsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
         <div>
           <h2 className="text-xl font-bold text-gray-800">ค่าคอมมิชชัน</h2>
           <p className="text-sm text-gray-400 mt-0.5">คำนวณจากยอด verified + approved + legacy (ไม่รวม pending / rejected)</p>
@@ -1142,7 +1139,7 @@ export default function CommissionsPage() {
 
       {/* Summary cards */}
       {data && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <p className="text-xs text-gray-400 mb-1">อัตราค่าคอม</p>
             <p className="text-2xl font-bold text-gray-800">{data.settings.rate}%</p>
@@ -1168,7 +1165,7 @@ export default function CommissionsPage() {
       )}
 
       {missingBankCount > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+        <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3 print:hidden">
           <span className="text-xl">⚠️</span>
           <p className="text-sm text-red-700 font-medium">
             มีเซล <span className="font-bold">{missingBankCount} คน</span> ถึงเป้าแต่ยังไม่กรอกข้อมูลธนาคาร
