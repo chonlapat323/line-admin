@@ -745,10 +745,11 @@ function AdjDetailModal({ row, currentMonth, onClose }: {
 }
 
 // ─── Report Tab ──────────────────────────────────────────────────────────────
-function ReportTab({ data, payments, month }: {
+function ReportTab({ data, payments, month, onMonthChange }: {
   data: CommissionData | null;
   payments: Payment[];
   month: string;
+  onMonthChange: (m: string) => void;
 }) {
   const paidSet = useMemo(() => new Set(payments.map((p) => p.userId)), [payments]);
   // รายงานแสดงเฉพาะคนที่ถึงเป้าเท่านั้น
@@ -772,15 +773,18 @@ function ReportTab({ data, payments, month }: {
             สูตร: ยอดสลิปสุทธิ + ยอดช่วยยกมา + ยอดช่วยเดือนนี้ = ยอดคำนวณ → ×{data?.settings.rate ?? "?"}%
           </p>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-xl transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-          </svg>
-          พิมพ์เอกสาร
-        </button>
+        <div className="flex items-center gap-2">
+          <MonthPicker value={month} onChange={onMonthChange} />
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-xl transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            พิมพ์เอกสาร
+          </button>
+        </div>
       </div>
 
       {/* Print header — visible only on print */}
@@ -802,15 +806,15 @@ function ReportTab({ data, payments, month }: {
         <div className="overflow-x-auto">
           <table className="w-full text-sm" style={{ fontVariantNumeric: "tabular-nums" }}>
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 print:bg-gray-100">
+              <tr className="border-b border-gray-100 bg-gray-50 print:bg-white">
                 <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">#</th>
                 <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">ชื่อเซล</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-gray-600">ยอดสลิปสุทธิ</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500">+ช่วยยกมา</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500">+ช่วยเดือนนี้</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500 print:text-gray-600">+ช่วยยกมา</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500 print:text-gray-600">+ช่วยเดือนนี้</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-gray-800">=ยอดคำนวณ</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-amber-600">ค่าคอม</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-orange-500">ยอดค้าง*</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-amber-600 print:text-gray-800">ค่าคอม</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-orange-500 print:text-gray-600">ยอดค้าง*</th>
                 <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
               </tr>
             </thead>
@@ -830,8 +834,8 @@ function ReportTab({ data, payments, month }: {
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-gray-800">{row.user.fullName}</p>
                         {paid
-                          ? <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">จ่ายแล้ว</span>
-                          : <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">รอจ่าย</span>}
+                          ? <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium print:bg-transparent print:text-gray-500 print:border print:border-gray-400">จ่ายแล้ว</span>
+                          : <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium print:bg-transparent print:text-gray-700 print:border print:border-gray-600">รอจ่าย</span>}
                       </div>
                       <p className="text-xs text-gray-400 print:hidden">{row.user.email}</p>
                     </td>
@@ -842,13 +846,13 @@ function ReportTab({ data, payments, month }: {
                     {/* ยอดช่วยยกมา */}
                     <td className="px-3 py-3 text-right">
                       {row.adjustCarryover > 0
-                        ? <span className="text-blue-500 font-medium">+฿{row.adjustCarryover.toLocaleString("th-TH")}</span>
+                        ? <span className="text-blue-500 font-medium print:text-gray-700">+฿{row.adjustCarryover.toLocaleString("th-TH")}</span>
                         : <span className="text-gray-300">—</span>}
                     </td>
                     {/* ยอดช่วยเดือนนี้ */}
                     <td className="px-3 py-3 text-right">
                       {row.adjustThisMonth > 0
-                        ? <span className="text-blue-500 font-medium">+฿{row.adjustThisMonth.toLocaleString("th-TH")}</span>
+                        ? <span className="text-blue-500 font-medium print:text-gray-700">+฿{row.adjustThisMonth.toLocaleString("th-TH")}</span>
                         : <span className="text-gray-300">—</span>}
                     </td>
                     {/* ยอดคำนวณ */}
@@ -861,13 +865,13 @@ function ReportTab({ data, payments, month }: {
                     {/* ค่าคอม */}
                     <td className="px-3 py-3 text-right font-bold">
                       {row.commission > 0
-                        ? <span className="text-amber-600">฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                        ? <span className="text-amber-600 print:text-gray-900">฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
                         : <span className="text-gray-300">—</span>}
                     </td>
                     {/* ยอดค้าง */}
                     <td className="px-3 py-3 text-right">
                       {row.outstandingDebt > 0
-                        ? <span className="text-orange-500 font-medium">฿{row.outstandingDebt.toLocaleString("th-TH")}</span>
+                        ? <span className="text-orange-500 font-medium print:text-gray-700">฿{row.outstandingDebt.toLocaleString("th-TH")}</span>
                         : <span className="text-gray-300">—</span>}
                     </td>
                     {/* ธนาคาร */}
@@ -887,18 +891,18 @@ function ReportTab({ data, payments, month }: {
             </tbody>
             {rows.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 border-gray-200 bg-gray-50 print:bg-gray-100">
+                <tr className="border-t-2 border-gray-200 bg-gray-50 print:bg-white print:border-black">
                   <td colSpan={2} className="px-3 py-3 text-xs font-semibold text-gray-500">รวม {rows.length} คน</td>
                   <td className="px-3 py-3 text-right font-semibold text-gray-700">฿{totalSlip.toLocaleString("th-TH")}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-blue-500">
+                  <td className="px-3 py-3 text-right font-semibold text-blue-500 print:text-gray-700">
                     {totalCarryover > 0 ? `+฿${totalCarryover.toLocaleString("th-TH")}` : "—"}
                   </td>
-                  <td className="px-3 py-3 text-right font-semibold text-blue-500">
+                  <td className="px-3 py-3 text-right font-semibold text-blue-500 print:text-gray-700">
                     {totalThisMonth > 0 ? `+฿${totalThisMonth.toLocaleString("th-TH")}` : "—"}
                   </td>
                   <td className="px-3 py-3 text-right font-bold text-gray-900">฿{totalCalc.toLocaleString("th-TH")}</td>
-                  <td className="px-3 py-3 text-right font-bold text-amber-600">฿{totalComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-orange-500">
+                  <td className="px-3 py-3 text-right font-bold text-amber-600 print:text-gray-900">฿{totalComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-orange-500 print:text-gray-700">
                     {totalDebt > 0 ? `฿${totalDebt.toLocaleString("th-TH")}` : "—"}
                   </td>
                   <td colSpan={1} />
@@ -1197,7 +1201,7 @@ export default function CommissionsPage() {
 
       {/* Tab: Report */}
       {activeTab === "report" && (
-        <ReportTab data={data} payments={payments} month={month} />
+        <ReportTab data={data} payments={payments} month={month} onMonthChange={setMonth} />
       )}
 
       {/* Tab: Overdue */}
