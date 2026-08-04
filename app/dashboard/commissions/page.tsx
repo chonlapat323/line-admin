@@ -17,6 +17,10 @@ interface UserSummary {
   commission: number;
   pendingCount: number;
 }
+interface OverdueRow extends UserSummary {
+  month: string;
+  monthsAgo: number;
+}
 interface CommissionData {
   month: string;
   settings: { rate: number; threshold: number };
@@ -917,13 +921,146 @@ function ReportTab({ data, payments, month }: {
   );
 }
 
+// ─── Overdue Tab ─────────────────────────────────────────────────────────────
+function OverdueTab({ rows, loading, onRefresh }: {
+  rows: OverdueRow[]; loading: boolean; onRefresh: () => void;
+}) {
+  const [payingRow, setPayingRow] = useState<OverdueRow | null>(null);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400 text-sm">
+        กำลังโหลด...
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center">
+        <p className="text-3xl mb-3">✅</p>
+        <p className="text-sm font-semibold text-gray-600">ไม่มียอดค้างจ่าย</p>
+        <p className="text-xs text-gray-400 mt-1">ค่าคอมทุกเดือนถูกจ่ายครบแล้ว</p>
+      </div>
+    );
+  }
+
+  const totalOverdue = rows.reduce((s, r) => s + r.commission, 0);
+
+  return (
+    <>
+      {/* Summary strip */}
+      <div className="flex items-center gap-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
+        <span className="text-amber-600 text-lg">⚠</span>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-amber-800">
+            มี {rows.length} รายการค้างจ่าย จาก {new Set(rows.map(r => r.month)).size} เดือน
+          </p>
+          <p className="text-xs text-amber-600 mt-0.5">
+            รวมค่าคอมที่ยังไม่ได้จ่าย ฿{totalOverdue.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-amber-500">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-white">#</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-white whitespace-nowrap">เดือน</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-white whitespace-nowrap">ค้างมา</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-white">เซล</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-white">ธนาคาร</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-white">ค่าคอม</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-white">การจ่าย</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => {
+                const noBankInfo = !row.user.bankName || !row.user.bankAccount;
+                return (
+                  <tr key={`${row.userId}-${row.month}`}
+                    className="border-b border-gray-50 hover:bg-amber-50/30 transition-colors">
+                    <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap">
+                      {MONTH_NAMES_TH[parseInt(row.month.split("-")[1]) - 1]} {parseInt(row.month.split("-")[0]) + 543}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        row.monthsAgo >= 3 ? "bg-red-100 text-red-700"
+                        : row.monthsAgo === 2 ? "bg-orange-100 text-orange-700"
+                        : "bg-amber-100 text-amber-700"
+                      }`}>
+                        {row.monthsAgo} เดือน
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-gray-800">{row.user.fullName}</p>
+                      <p className="text-xs text-gray-400">{row.user.email}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {!noBankInfo ? (
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">{row.user.bankName}</p>
+                          <p className="text-xs text-gray-500 font-mono">{row.user.bankAccount}</p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-red-500 font-semibold">⚠ ยังไม่กรอก</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-amber-700 tabular-nums">
+                      ฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => setPayingRow(row)}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors"
+                      >
+                        บันทึกการจ่าย
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-gray-200 bg-gray-50">
+                <td colSpan={5} className="px-4 py-3 text-xs font-semibold text-gray-500">
+                  รวม {rows.length} รายการ
+                </td>
+                <td className="px-4 py-3 text-right font-bold text-amber-700 tabular-nums">
+                  ฿{totalOverdue.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {payingRow && (
+        <PayModal
+          row={payingRow}
+          month={payingRow.month}
+          onClose={() => setPayingRow(null)}
+          onDone={() => { setPayingRow(null); onRefresh(); }}
+        />
+      )}
+    </>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function CommissionsPage() {
   const month = getCurrentMonth();
   const [data, setData] = useState<CommissionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [activeTab, setActiveTab] = useState<"calc" | "history" | "report">("calc");
+  const [activeTab, setActiveTab] = useState<"calc" | "history" | "report" | "overdue">("calc");
+  const [overdueRows, setOverdueRows] = useState<OverdueRow[]>([]);
+  const [loadingOverdue, setLoadingOverdue] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState("reached");
   const [search, setSearch] = useState("");
@@ -958,7 +1095,16 @@ export default function CommissionsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const loadOverdue = useCallback(() => {
+    setLoadingOverdue(true);
+    api.getCommissionOverdue()
+      .then((res: any) => setOverdueRows(Array.isArray(res) ? res : []))
+      .catch(console.error)
+      .finally(() => setLoadingOverdue(false));
+  }, []);
+
   useEffect(() => { load(month); }, [month]);
+  useEffect(() => { loadOverdue(); }, []);
 
   const paidSet = useMemo(() => new Set(payments.map((p) => p.userId)), [payments]);
 
@@ -1036,9 +1182,14 @@ export default function CommissionsPage() {
           { key: "calc",    label: "คำนวณ" },
           { key: "history", label: `ประวัติการจ่าย${payments.length > 0 ? ` (${payments.length})` : ""}` },
           { key: "report",  label: "รายงาน" },
+          { key: "overdue", label: `ยอดค้างจ่าย${overdueRows.length > 0 ? ` (${overdueRows.length})` : ""}` },
         ].map((t) => (
-          <button key={t.key} onClick={() => setActiveTab(t.key as "calc" | "history" | "report")}
-            className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${activeTab === t.key ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}>
+          <button key={t.key} onClick={() => setActiveTab(t.key as "calc" | "history" | "report" | "overdue")}
+            className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${
+              activeTab === t.key ? "bg-white shadow-sm text-gray-800"
+              : t.key === "overdue" && overdueRows.length > 0 ? "text-amber-600 hover:text-amber-700"
+              : "text-gray-500 hover:text-gray-700"
+            }`}>
             {t.label}
           </button>
         ))}
@@ -1050,6 +1201,11 @@ export default function CommissionsPage() {
       {/* Tab: Report */}
       {activeTab === "report" && (
         <ReportTab data={data} payments={payments} month={month} />
+      )}
+
+      {/* Tab: Overdue */}
+      {activeTab === "overdue" && (
+        <OverdueTab rows={overdueRows} loading={loadingOverdue} onRefresh={loadOverdue} />
       )}
 
       {/* Tab: Calc */}

@@ -92,6 +92,9 @@ export const api = {
   getCommissionSummary: (month: string) =>
     request(`/visits/commission-summary?month=${month}`),
 
+  getCommissionOverdue: () =>
+    request(`/visits/commission-overdue`),
+
   createCommissionAdjustment: (data: { userId: string; month: string; amount: number; note?: string }) =>
     request("/commission-adjustments", { method: "POST", body: JSON.stringify(data) }),
 
