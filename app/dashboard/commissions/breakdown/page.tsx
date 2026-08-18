@@ -152,7 +152,10 @@ export default function BreakdownPage() {
   const loanHelpAdjs    = monthAdjs.filter((a) => a.type === "loan_help");
   const adjustThisMonth = loanHelpAdjs.reduce((s, a) => s + a.amount, 0);
 
-  const totalForComm = totalSlip + adjustThisMonth;
+  // debtDeducted จาก slip เดือนนี้ต้องหักออกจากฐานค่าคอม
+  const totalDeducted = commSlips.reduce((s, r) => s + (r.debtDeducted ?? 0), 0);
+
+  const totalForComm = totalSlip - totalDeducted + adjustThisMonth;
   const { breakdown: tierBreakdown, total: commTotal } = calcTierCommission(totalForComm, tiers);
   const flatComm = tiers.length === 0 ? Math.round(totalForComm * flatRate) / 100 : 0;
 
@@ -434,6 +437,15 @@ export default function BreakdownPage() {
                 <p className="text-xs text-gray-400">{commSlips.length} สลิป</p>
               )}
             </div>
+
+            {totalDeducted > 0 && (
+              <div>
+                <p className="text-xs text-gray-500">− หักหนี้เดือนนี้</p>
+                <p className="text-xl font-bold text-orange-600 tabular-nums">
+                  −฿{totalDeducted.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            )}
 
             {adjustThisMonth !== 0 && (
               <div>
