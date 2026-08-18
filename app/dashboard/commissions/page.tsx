@@ -1314,21 +1314,23 @@ export default function CommissionsPage() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-8">#</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">เดือน</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">เซล</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">จำนวนสลิป</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ยอดขายรวม</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">ยอดสลิปสุทธิ</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-blue-500 whitespace-nowrap">+ช่วยยกมา</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-blue-500 whitespace-nowrap">+ช่วยเดือนนี้</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-orange-500 whitespace-nowrap">ยอดค้าง</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap">=ยอดคำนวณ</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500">สถานะ</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ค่าคอม</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500">การจ่าย</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && <tr><td colSpan={9} className="text-center py-12 text-gray-400 text-sm">กำลังคำนวณ...</td></tr>}
+                  {loading && <tr><td colSpan={11} className="text-center py-12 text-gray-400 text-sm">กำลังคำนวณ...</td></tr>}
                   {!loading && filtered.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="text-center py-16">
+                      <td colSpan={11} className="text-center py-16">
                         <p className="text-2xl mb-2">📊</p>
                         <p className="text-sm font-semibold text-gray-600">ไม่มีข้อมูล</p>
                       </td>
@@ -1342,9 +1344,6 @@ export default function CommissionsPage() {
                       <tr key={row.userId} onClick={() => goBreakdown(row.userId, row.user.fullName)}
                         className="border-b border-gray-50 hover:bg-green-50/40 cursor-pointer transition-colors">
                         <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
-                        <td className="px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap">
-                          {MONTH_NAMES_TH[parseInt(month.split("-")[1]) - 1]} {parseInt(month.split("-")[0]) + 543}
-                        </td>
                         <td className="px-4 py-3">
                           <p className="font-semibold text-gray-800">{row.user.fullName}</p>
                           <p className="text-xs text-gray-400">{row.user.email}</p>
@@ -1361,30 +1360,49 @@ export default function CommissionsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right font-medium text-gray-700">{row.visitCount}</td>
-                        <td className="px-4 py-3 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
-                          <p className="font-bold text-gray-800">
-                            ฿{row.totalAmount.toLocaleString("th-TH")}
-                          </p>
-                          {(row.adjustCarryover > 0 || row.adjustThisMonth > 0) && (
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          <p className="font-medium text-gray-700">฿{row.slipAmount.toLocaleString("th-TH")}</p>
+                          <p className="text-xs text-gray-400">{row.visitCount} สลิป</p>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {row.adjustCarryover > 0 ? (
                             <button
                               onClick={(e) => { e.stopPropagation(); setAdjDetailRow(row); }}
-                              className="text-xs text-blue-500 hover:text-blue-700 mt-0.5 underline underline-offset-2 cursor-pointer"
+                              className="text-blue-500 font-medium hover:text-blue-700 underline underline-offset-2"
                             >
-                              มียอดช่วย
+                              +฿{row.adjustCarryover.toLocaleString("th-TH")}
                             </button>
-                          )}
-                          {row.outstandingDebt > 0 && (
-                            <p className="text-xs text-orange-500 mt-0.5 font-medium">
-                              ค้าง ฿{row.outstandingDebt.toLocaleString("th-TH")}
-                            </p>
-                          )}
-                          {canEdit && (
-                            <button onClick={(e) => { e.stopPropagation(); setAdjustingRow(row); }}
-                              className="text-xs text-blue-400 hover:text-blue-600 mt-0.5 underline">
-                              + ช่วยยอด
-                            </button>
-                          )}
+                          ) : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          <div className="flex flex-col items-end gap-1">
+                            {row.adjustThisMonth > 0 ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setAdjDetailRow(row); }}
+                                className="text-blue-500 font-medium hover:text-blue-700 underline underline-offset-2"
+                              >
+                                +฿{row.adjustThisMonth.toLocaleString("th-TH")}
+                              </button>
+                            ) : <span className="text-gray-300">—</span>}
+                            {canEdit && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setAdjustingRow(row); }}
+                                className="text-xs text-blue-400 hover:text-blue-600 border border-blue-200 hover:border-blue-400 px-1.5 py-0.5 rounded transition-colors"
+                              >
+                                + ช่วยยอด
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {row.outstandingDebt > 0
+                            ? <span className="text-orange-500 font-medium">฿{row.outstandingDebt.toLocaleString("th-TH")}</span>
+                            : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          <span className={`font-bold ${(row.adjustCarryover > 0 || row.adjustThisMonth > 0) ? "text-gray-900" : "text-gray-700"}`}>
+                            ฿{row.totalAmount.toLocaleString("th-TH")}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-center">
                           {row.reachedThreshold ? (
@@ -1429,7 +1447,14 @@ export default function CommissionsPage() {
                   <tfoot>
                     <tr className="border-t-2 border-gray-200 bg-gray-50">
                       <td colSpan={3} className="px-4 py-3 text-xs font-semibold text-gray-500">รวม {filtered.length} คน</td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-600">{filtered.reduce((s, r) => s + r.visitCount, 0)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-gray-700">฿{filtered.reduce((s, r) => s + r.slipAmount, 0).toLocaleString("th-TH")}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-blue-500">
+                        {filtered.some((r) => r.adjustCarryover > 0) ? `+฿${filtered.reduce((s, r) => s + r.adjustCarryover, 0).toLocaleString("th-TH")}` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-blue-500">
+                        {filtered.some((r) => r.adjustThisMonth > 0) ? `+฿${filtered.reduce((s, r) => s + r.adjustThisMonth, 0).toLocaleString("th-TH")}` : "—"}
+                      </td>
+                      <td />
                       <td className="px-4 py-3 text-right font-bold text-gray-800">฿{filtered.reduce((s, r) => s + r.totalAmount, 0).toLocaleString("th-TH")}</td>
                       <td />
                       <td className="px-4 py-3 text-right font-bold text-amber-600">฿{filtered.reduce((s, r) => s + r.commission, 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
