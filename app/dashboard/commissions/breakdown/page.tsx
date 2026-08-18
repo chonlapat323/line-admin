@@ -475,13 +475,15 @@ export default function BreakdownPage() {
         </div>
 
         {/* ยอดค้างสะสม */}
-        {outstandingDebt > 0 && (
-          <div className="bg-orange-50 rounded-2xl border border-orange-200 p-4 space-y-2">
-            <p className="text-xs font-semibold text-orange-700">ยอดค้างสะสม</p>
-            <p className="text-xl font-bold text-orange-600 tabular-nums">
+        {(priorLoanHelp.length > 0 || allRepayments.length > 0) && (
+          <div className={`rounded-2xl border p-4 space-y-2 ${outstandingDebt > 0 ? "bg-orange-50 border-orange-200" : "bg-green-50 border-green-200"}`}>
+            <p className={`text-xs font-semibold ${outstandingDebt > 0 ? "text-orange-700" : "text-green-700"}`}>ยอดค้างสะสม</p>
+            <p className={`text-xl font-bold tabular-nums ${outstandingDebt > 0 ? "text-orange-600" : "text-green-600"}`}>
               ฿{outstandingDebt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-orange-500">จะถูกหักจากค่าคอมเดือนถัดไป</p>
+            <p className={`text-xs ${outstandingDebt > 0 ? "text-orange-500" : "text-green-600 font-medium"}`}>
+              {outstandingDebt > 0 ? "จะถูกหักจากค่าคอมเดือนถัดไป" : "ชำระคืนครบแล้ว"}
+            </p>
             {(priorLoanHelp.length > 0 || allRepayments.length > 0) && (
               <div className="pt-2 border-t border-orange-200 space-y-1">
                 <p className="text-xs text-orange-600 font-medium">รายละเอียด</p>
