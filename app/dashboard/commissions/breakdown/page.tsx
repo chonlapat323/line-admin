@@ -11,6 +11,7 @@ interface SlipRecord {
   slipUrl: string;
   slipStatus: string;
   createdAt: string;
+  debtDeducted?: number | null;
 }
 
 interface AdjRecord {
@@ -286,10 +287,17 @@ export default function BreakdownPage() {
                     <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                       <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}.</td>
                       <td className="px-4 py-3 font-medium text-gray-800">{s.shopName}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-800 tabular-nums">
-                        {s.amount != null
-                          ? s.amount.toLocaleString("th-TH", { minimumFractionDigits: 2 })
-                          : "—"}
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        <span className="font-semibold text-gray-800">
+                          {s.amount != null
+                            ? s.amount.toLocaleString("th-TH", { minimumFractionDigits: 2 })
+                            : "—"}
+                        </span>
+                        {s.debtDeducted != null && s.debtDeducted > 0 && (
+                          <span className="block text-[10px] text-orange-500 font-medium">
+                            หักหนี้ −{s.debtDeducted.toLocaleString("th-TH")}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">{s.details || "—"}</td>
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
@@ -485,26 +493,29 @@ export default function BreakdownPage() {
               {outstandingDebt > 0 ? "จะถูกหักจากค่าคอมเดือนถัดไป" : "ชำระคืนครบแล้ว"}
             </p>
             {(priorLoanHelp.length > 0 || allRepayments.length > 0) && (
-              <div className="pt-2 border-t border-orange-200 space-y-1">
-                <p className="text-xs text-orange-600 font-medium">รายละเอียด</p>
+              <div className={`pt-2 border-t space-y-1 ${outstandingDebt > 0 ? "border-orange-200" : "border-green-200"}`}>
+                <p className={`text-xs font-medium ${outstandingDebt > 0 ? "text-orange-600" : "text-green-700"}`}>รายละเอียด</p>
                 {priorLoanHelp.map((a) => (
-                  <div key={a.id} className="flex justify-between text-xs text-orange-700">
+                  <div key={a.id} className={`flex justify-between text-xs ${outstandingDebt > 0 ? "text-orange-700" : "text-green-700"}`}>
                     <span>ช่วยยอด {a.month}</span>
                     <span className="tabular-nums font-medium">+฿{a.amount.toLocaleString("th-TH")}</span>
                   </div>
                 ))}
                 {allRepayments.map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => setSelectedMonth(a.month)}
-                    className="w-full flex justify-between text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded px-1 -mx-1 transition-colors text-left"
-                    title={a.note ?? `ดู slip เดือน ${a.month}`}
-                  >
-                    <span className="underline underline-offset-2">หักคืน {a.month}</span>
-                    <span className="tabular-nums font-medium text-red-500">-฿{Math.abs(a.amount).toLocaleString("th-TH")}</span>
-                  </button>
+                  <div key={a.id} className="space-y-0.5">
+                    <button
+                      onClick={() => setSelectedMonth(a.month)}
+                      className="w-full flex justify-between text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded px-1 -mx-1 transition-colors text-left"
+                    >
+                      <span className="underline underline-offset-2">หักคืน {a.month}</span>
+                      <span className="tabular-nums font-medium text-red-500">-฿{Math.abs(a.amount).toLocaleString("th-TH")}</span>
+                    </button>
+                    {a.note && (
+                      <p className="text-[10px] text-gray-400 px-1 leading-tight">{a.note}</p>
+                    )}
+                  </div>
                 ))}
-                <div className="flex justify-between text-xs font-bold text-orange-800 pt-1 border-t border-orange-200">
+                <div className={`flex justify-between text-xs font-bold pt-1 border-t ${outstandingDebt > 0 ? "text-orange-800 border-orange-200" : "text-green-800 border-green-200"}`}>
                   <span>คงเหลือ</span>
                   <span className="tabular-nums">฿{outstandingDebt.toLocaleString("th-TH")}</span>
                 </div>
