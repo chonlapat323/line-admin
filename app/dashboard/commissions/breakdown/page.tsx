@@ -159,14 +159,14 @@ export default function BreakdownPage() {
   const { breakdown: tierBreakdown, total: commTotal } = calcTierCommission(totalForComm, tiers);
   const flatComm = tiers.length === 0 ? Math.round(totalForComm * flatRate) / 100 : 0;
 
-  // ยอดค้างสะสม = ยอดช่วยก่อนเดือนนี้ทั้งหมด + ยอดหักคืนทั้งหมด (ทุกเดือน)
+  // ยอดค้างสะสม ณ สิ้นเดือนที่ดู = ยอดช่วยก่อนเดือนนี้ + ยอดหักคืน ≤ เดือนนี้
   const priorPositive = adjs.filter((a) => a.month < selectedMonth && a.amount > 0).reduce((s, a) => s + a.amount, 0);
-  const allNegative   = adjs.filter((a) => a.amount < 0).reduce((s, a) => s + a.amount, 0);
+  const allNegative   = adjs.filter((a) => a.amount < 0 && a.month <= selectedMonth).reduce((s, a) => s + a.amount, 0);
   const outstandingDebt = Math.max(0, priorPositive + allNegative);
 
-  // รายการที่มาของยอดค้าง: loan_help เดือนก่อน + repayment ทุกเดือน
+  // รายการที่มาของยอดค้าง: loan_help เดือนก่อน + repayment ≤ เดือนนี้
   const priorLoanHelp = adjs.filter((a) => a.month < selectedMonth && a.amount > 0);
-  const allRepayments = adjs.filter((a) => a.amount < 0);
+  const allRepayments = adjs.filter((a) => a.amount < 0 && a.month <= selectedMonth);
 
   const todayYm = new Date().toISOString().slice(0, 7);
 
