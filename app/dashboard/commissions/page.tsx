@@ -807,9 +807,9 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
 
       {/* Legend — ยอดช่วยยอด คืออะไร */}
       <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-xs text-blue-700 space-y-1 print:hidden">
-        <p><span className="font-semibold">ยอดช่วยยกมา</span> = ยอดที่ admin ช่วยยอดในเดือนก่อนๆ ที่ยังค้างอยู่ → รวมในการคำนวณค่าคอมเดือนนี้</p>
-        <p><span className="font-semibold">ยอดช่วยเดือนนี้</span> = ยอดที่ admin ช่วยยอดในเดือนนี้ → รวมในการคำนวณค่าคอมเดือนนี้</p>
-        <p><span className="font-semibold text-orange-600">ยอดค้าง</span> = ยอดรวมทั้งหมดที่ยังไม่ได้หักคืน → จะถูกหักออกจากค่าคอมเดือนถัดไป</p>
+        <p><span className="font-semibold">ช่วยยกมา</span> = ยอด loan_help จากเดือนก่อนๆ สุทธิ (หักคืนที่ชำระไปแล้ว) → <span className="font-semibold">นับในสูตร</span></p>
+        <p><span className="font-semibold">ช่วยเดือนนี้</span> = loan_help เฉพาะเดือนที่ดู → <span className="font-semibold">นับในสูตร</span>: สลิปสุทธิ + ยกมา + ช่วยเดือนนี้ = ยอดคำนวณ</p>
+        <p><span className="font-semibold text-orange-600">ยอดค้าง</span> = ยอดรวมทั้งหมดที่ยังไม่ได้หักคืน → หักผ่าน slip เมื่อลูกค้าชำระ</p>
       </div>
 
       {/* Table — screen only */}
