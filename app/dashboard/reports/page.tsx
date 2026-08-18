@@ -398,8 +398,9 @@ export default function ReportsPage() {
                     {selectedUserId && !loading && filteredSlips.length === 0 && <tr><td colSpan={7} className="text-center py-20 text-gray-400">ไม่มีรายการ</td></tr>}
                     {!loading && filteredSlips.map((s, i) => {
                       const st = SLIP_STATUS[s.slipStatus] ?? { label: s.slipStatus, color: "bg-gray-100 text-gray-500" };
+                      const isCommSlip = s.slipStatus === "verified" || s.slipStatus === "approved";
                       return (
-                        <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                        <tr key={s.id} className={`border-b border-gray-50 hover:bg-gray-50/50${!isCommSlip ? " print:hidden" : ""}`}>
                           <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}.</td>
                           <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                             {new Date(s.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
@@ -430,13 +431,21 @@ export default function ReportsPage() {
                   </tbody>
                   {!loading && filteredSlips.length > 0 && (
                     <tfoot>
-                      <tr className="border-t-2 border-gray-200 bg-gray-50">
+                      {/* Screen: แสดงทุก slip */}
+                      <tr className="border-t-2 border-gray-200 bg-gray-50 print:hidden">
                         <td colSpan={2} className="px-4 py-3 text-xs font-semibold text-gray-500">{filteredSlips.length} รายการ</td>
                         <td className="px-4 py-3 text-right font-bold text-gray-800 tabular-nums">
                           {slipTotal.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                         </td>
-                        <td colSpan={2} className="print:hidden" />
-                        <td colSpan={2} className="hidden print:table-cell" />
+                        <td colSpan={4} />
+                      </tr>
+                      {/* Print: เฉพาะ verified + approved */}
+                      <tr className="border-t-2 border-gray-200 hidden print:table-row">
+                        <td colSpan={2} className="px-4 py-3 text-xs font-semibold text-gray-500">{commSlips.length} รายการ</td>
+                        <td className="px-4 py-3 text-right font-bold text-gray-800 tabular-nums">
+                          {commTotal.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                        </td>
+                        <td colSpan={2} />
                       </tr>
                     </tfoot>
                   )}
