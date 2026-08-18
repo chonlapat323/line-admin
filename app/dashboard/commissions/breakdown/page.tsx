@@ -147,10 +147,9 @@ export default function BreakdownPage() {
   const totalSlip    = commSlips.reduce((s, r) => s + (r.amount ?? 0), 0);
   const totalAllSlip = slips.reduce((s, r) => s + (r.amount ?? 0), 0);
 
-  // Only loan_help adjustments count toward the commission base
-  const adjustThisMonth = monthAdjs
-    .filter((a) => a.type === "loan_help")
-    .reduce((s, a) => s + a.amount, 0);
+  // Only loan_help adjustments count toward the commission base (shown in adj table)
+  const loanHelpAdjs    = monthAdjs.filter((a) => a.type === "loan_help");
+  const adjustThisMonth = loanHelpAdjs.reduce((s, a) => s + a.amount, 0);
 
   const totalForComm = totalSlip + adjustThisMonth;
   const { breakdown: tierBreakdown, total: commTotal } = calcTierCommission(totalForComm, tiers);
@@ -345,9 +344,9 @@ export default function BreakdownPage() {
             </div>
             {loadingAdjs ? (
               <p className="text-center py-10 text-gray-400 text-sm">กำลังโหลด...</p>
-            ) : monthAdjs.length === 0 ? (
+            ) : loanHelpAdjs.length === 0 ? (
               <p className="text-center py-10 text-gray-400 text-sm">
-                ไม่มีการปรับยอดใน{monthLabel(selectedMonth)}
+                ไม่มีการช่วยยอดใน{monthLabel(selectedMonth)}
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -363,7 +362,7 @@ export default function BreakdownPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {monthAdjs.map((a, i) => (
+                    {loanHelpAdjs.map((a, i) => (
                       <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                         <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}.</td>
                         <td className="px-4 py-3">
@@ -396,7 +395,7 @@ export default function BreakdownPage() {
                   <tfoot>
                     <tr className="border-t-2 border-gray-200 bg-gray-50">
                       <td colSpan={2} className="px-4 py-3 text-xs font-semibold text-gray-500">
-                        {monthAdjs.length} รายการ
+                        {loanHelpAdjs.length} รายการ
                       </td>
                       <td className="px-4 py-3 text-right font-bold tabular-nums text-violet-700">
                         {adjustThisMonth >= 0 ? "+" : ""}
