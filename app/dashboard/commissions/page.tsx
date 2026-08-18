@@ -1384,7 +1384,7 @@ export default function CommissionsPage() {
                                 +฿{row.adjustThisMonth.toLocaleString("th-TH")}
                               </button>
                             ) : <span className="text-gray-300">—</span>}
-                            {canEdit && (
+                            {canEdit && !paid && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); setAdjustingRow(row); }}
                                 className="text-xs text-blue-400 hover:text-blue-600 border border-blue-200 hover:border-blue-400 px-1.5 py-0.5 rounded transition-colors"
