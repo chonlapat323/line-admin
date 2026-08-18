@@ -44,14 +44,13 @@ const ADJ_TYPE_LABEL: Record<string, string> = {
 
 function calcTierCommission(amount: number, tiers: CommissionTier[]) {
   if (!tiers.length) return { breakdown: [], total: 0 };
-  let total = 0;
-  const breakdown = tiers.map((t) => {
-    const inRange = Math.max(0, Math.min(amount, t.max ?? Infinity) - t.min);
-    const commission = inRange * (t.rate / 100);
-    total += commission;
-    return { ...t, inRange, commission };
-  });
-  return { breakdown, total };
+  // flat tier: หา tier สูงสุดที่ amount >= tier.min แล้วคิด rate นั้นกับยอดทั้งหมด
+  let activeTier = tiers[0];
+  for (const t of tiers) {
+    if (amount >= t.min) activeTier = t;
+  }
+  const commission = Math.round(amount * activeTier.rate) / 100;
+  return { breakdown: [{ ...activeTier, inRange: amount, commission }], total: commission };
 }
 
 function monthLabel(ym: string) {
@@ -156,6 +155,15 @@ export default function BreakdownPage() {
   const totalForComm = totalSlip + adjustThisMonth;
   const { breakdown: tierBreakdown, total: commTotal } = calcTierCommission(totalForComm, tiers);
   const flatComm = tiers.length === 0 ? Math.round(totalForComm * flatRate) / 100 : 0;
+
+  // ยอดค้างสะสม = ยอดช่วยก่อนเดือนนี้ทั้งหมด + ยอดหักคืนทั้งหมด (ทุกเดือน)
+  const priorPositive = adjs.filter((a) => a.month < selectedMonth && a.amount > 0).reduce((s, a) => s + a.amount, 0);
+  const allNegative   = adjs.filter((a) => a.amount < 0).reduce((s, a) => s + a.amount, 0);
+  const outstandingDebt = Math.max(0, priorPositive + allNegative);
+
+  // รายการที่มาของยอดค้าง: loan_help เดือนก่อน + repayment ทุกเดือน
+  const priorLoanHelp = adjs.filter((a) => a.month < selectedMonth && a.amount > 0);
+  const allRepayments = adjs.filter((a) => a.amount < 0);
 
   const todayYm = new Date().toISOString().slice(0, 7);
 
@@ -466,6 +474,43 @@ export default function BreakdownPage() {
             )}
           </div>
         </div>
+
+        {/* ยอดค้างสะสม */}
+        {outstandingDebt > 0 && (
+          <div className="bg-orange-50 rounded-2xl border border-orange-200 p-4 space-y-2">
+            <p className="text-xs font-semibold text-orange-700">ยอดค้างสะสม</p>
+            <p className="text-xl font-bold text-orange-600 tabular-nums">
+              ฿{outstandingDebt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-orange-500">จะถูกหักจากค่าคอมเดือนถัดไป</p>
+            {(priorLoanHelp.length > 0 || allRepayments.length > 0) && (
+              <div className="pt-2 border-t border-orange-200 space-y-1">
+                <p className="text-xs text-orange-600 font-medium">รายละเอียด</p>
+                {priorLoanHelp.map((a) => (
+                  <div key={a.id} className="flex justify-between text-xs text-orange-700">
+                    <span>ช่วยยอด {a.month}</span>
+                    <span className="tabular-nums font-medium">+฿{a.amount.toLocaleString("th-TH")}</span>
+                  </div>
+                ))}
+                {allRepayments.map((a) => (
+                  <button
+                    key={a.id}
+                    onClick={() => setSelectedMonth(a.month)}
+                    className="w-full flex justify-between text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded px-1 -mx-1 transition-colors text-left"
+                    title={a.note ?? `ดู slip เดือน ${a.month}`}
+                  >
+                    <span className="underline underline-offset-2">หักคืน {a.month}</span>
+                    <span className="tabular-nums font-medium text-red-500">-฿{Math.abs(a.amount).toLocaleString("th-TH")}</span>
+                  </button>
+                ))}
+                <div className="flex justify-between text-xs font-bold text-orange-800 pt-1 border-t border-orange-200">
+                  <span>คงเหลือ</span>
+                  <span className="tabular-nums">฿{outstandingDebt.toLocaleString("th-TH")}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Slip image preview */}

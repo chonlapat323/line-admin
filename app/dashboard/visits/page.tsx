@@ -96,7 +96,7 @@ export default function VisitsPage() {
   }, []);
 
   // Filters
-  const [period, setPeriod] = useState<PeriodFilter>("today");
+  const [period, setPeriod] = useState<PeriodFilter>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [search, setSearch] = useState("");
@@ -110,7 +110,11 @@ export default function VisitsPage() {
 
   // UI
   const [previewImg, setPreviewImg] = useState<string | null>(null);
-  const [showMap, setShowMap] = useState(true);
+  const [showMap, setShowMap] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const stored = localStorage.getItem("visits_showMap");
+    return stored === null ? true : stored === "true";
+  });
   const [flyToProvince, setFlyToProvince] = useState<string | undefined>();
   const [selectedVisit, setSelectedVisit] = useState<VisitRecord | null>(null);
   const [tablePage, setTablePage] = useState(1);
@@ -198,7 +202,7 @@ export default function VisitsPage() {
           <p className="text-sm text-gray-400 mt-0.5">{pageData.total} รายการ{Object.values({ provinceFilter, resultFilter, tripFilter, visitTypeFilter, customerFilter, search: debouncedSearch }).some(Boolean) || period !== "all" ? " (กรอง)" : "ทั้งหมด"}</p>
         </div>
         <button
-          onClick={() => setShowMap((v) => !v)}
+          onClick={() => setShowMap((v) => { const next = !v; localStorage.setItem("visits_showMap", String(next)); return next; })}
           className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

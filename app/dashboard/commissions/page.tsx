@@ -812,94 +812,61 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
         <p><span className="font-semibold text-orange-600">ยอดค้าง</span> = ยอดรวมทั้งหมดที่ยังไม่ได้หักคืน → จะถูกหักออกจากค่าคอมเดือนถัดไป</p>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden print:shadow-none print:border print:border-gray-300 print:rounded-none">
+      {/* Table — screen only */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden print:hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm" style={{ fontVariantNumeric: "tabular-nums" }}>
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 print:bg-white">
+              <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">#</th>
                 <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">ชื่อเซล</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-gray-600">ยอดสลิปสุทธิ</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500 print:text-gray-600">+ช่วยยกมา</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500 print:text-gray-600">+ช่วยเดือนนี้</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500">+ช่วยยกมา</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500">+ช่วยเดือนนี้</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-gray-800">=ยอดคำนวณ</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-amber-600 print:text-gray-800">ค่าคอม</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-orange-500 print:text-gray-600">ยอดค้าง*</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-amber-600">ค่าคอม</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-orange-500">ยอดค้าง*</th>
                 <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
               </tr>
             </thead>
             <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={9} className="text-center py-16 text-gray-400 text-sm">กำลังโหลด...</td>
-                </tr>
-              )}
-              {!loading && rows.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="text-center py-16 text-gray-400 text-sm">ไม่มีข้อมูล</td>
-                </tr>
-              )}
+              {loading && <tr><td colSpan={9} className="text-center py-16 text-gray-400 text-sm">กำลังโหลด...</td></tr>}
+              {!loading && rows.length === 0 && <tr><td colSpan={9} className="text-center py-16 text-gray-400 text-sm">ไม่มีข้อมูล</td></tr>}
               {rows.map((row, i) => {
                 const paid = paidSet.has(row.userId);
                 const hasAdj = row.adjustCarryover > 0 || row.adjustThisMonth > 0;
                 return (
-                  <tr key={row.userId} className="border-b border-gray-50 print:border-gray-200">
+                  <tr key={row.userId} className="border-b border-gray-50">
                     <td className="px-3 py-3 text-xs text-gray-400">{i + 1}</td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-gray-800">{row.user.fullName}</p>
                         {paid
-                          ? <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium print:bg-transparent print:text-gray-500 print:border print:border-gray-400">จ่ายแล้ว</span>
-                          : <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium print:bg-transparent print:text-gray-700 print:border print:border-gray-600">รอจ่าย</span>}
+                          ? <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">จ่ายแล้ว</span>
+                          : <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">รอจ่าย</span>}
                       </div>
-                      <p className="text-xs text-gray-400 print:hidden">{row.user.email}</p>
+                      <p className="text-xs text-gray-400">{row.user.email}</p>
                     </td>
-                    {/* ยอดสลิปสุทธิ */}
-                    <td className="px-3 py-3 text-right text-gray-700">
-                      ฿{row.slipAmount.toLocaleString("th-TH")}
-                    </td>
-                    {/* ยอดช่วยยกมา */}
+                    <td className="px-3 py-3 text-right text-gray-700">฿{row.slipAmount.toLocaleString("th-TH")}</td>
                     <td className="px-3 py-3 text-right">
-                      {row.adjustCarryover > 0
-                        ? <span className="text-blue-500 font-medium print:text-gray-700">+฿{row.adjustCarryover.toLocaleString("th-TH")}</span>
-                        : <span className="text-gray-300">—</span>}
+                      {row.adjustCarryover > 0 ? <span className="text-blue-500 font-medium">+฿{row.adjustCarryover.toLocaleString("th-TH")}</span> : <span className="text-gray-300">—</span>}
                     </td>
-                    {/* ยอดช่วยเดือนนี้ */}
                     <td className="px-3 py-3 text-right">
-                      {row.adjustThisMonth > 0
-                        ? <span className="text-blue-500 font-medium print:text-gray-700">+฿{row.adjustThisMonth.toLocaleString("th-TH")}</span>
-                        : <span className="text-gray-300">—</span>}
+                      {row.adjustThisMonth > 0 ? <span className="text-blue-500 font-medium">+฿{row.adjustThisMonth.toLocaleString("th-TH")}</span> : <span className="text-gray-300">—</span>}
                     </td>
-                    {/* ยอดคำนวณ */}
                     <td className={`px-3 py-3 text-right font-bold ${hasAdj ? "text-gray-900" : "text-gray-700"}`}>
                       ฿{row.totalAmount.toLocaleString("th-TH")}
-                      {!row.reachedThreshold && (
-                        <p className="text-xs font-normal text-gray-400 mt-0.5">ไม่ถึงเป้า</p>
-                      )}
                     </td>
-                    {/* ค่าคอม */}
                     <td className="px-3 py-3 text-right font-bold">
-                      {row.commission > 0
-                        ? <span className="text-amber-600 print:text-gray-900">฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
-                        : <span className="text-gray-300">—</span>}
+                      {row.commission > 0 ? <span className="text-amber-600">฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span> : <span className="text-gray-300">—</span>}
                     </td>
-                    {/* ยอดค้าง */}
                     <td className="px-3 py-3 text-right">
-                      {row.outstandingDebt > 0
-                        ? <span className="text-orange-500 font-medium print:text-gray-700">฿{row.outstandingDebt.toLocaleString("th-TH")}</span>
-                        : <span className="text-gray-300">—</span>}
+                      {row.outstandingDebt > 0 ? <span className="text-orange-500 font-medium">฿{row.outstandingDebt.toLocaleString("th-TH")}</span> : <span className="text-gray-300">—</span>}
                     </td>
-                    {/* ธนาคาร */}
                     <td className="px-3 py-3">
                       {row.user.bankName
-                        ? <div>
-                            <p className="text-sm text-gray-700">{row.user.bankName}</p>
-                            <p className="text-xs text-gray-400 font-mono">{row.user.bankAccount}</p>
-                          </div>
-                        : <span className={`text-xs ${row.reachedThreshold ? "text-red-400 font-semibold" : "text-gray-300"}`}>
-                            {row.reachedThreshold ? "ยังไม่กรอก" : "—"}
-                          </span>}
+                        ? <div><p className="text-sm text-gray-700">{row.user.bankName}</p><p className="text-xs text-gray-400 font-mono">{row.user.bankAccount}</p></div>
+                        : <span className="text-xs text-red-400 font-semibold">ยังไม่กรอก</span>}
                     </td>
                   </tr>
                 );
@@ -907,21 +874,15 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
             </tbody>
             {rows.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 border-gray-200 bg-gray-50 print:bg-white print:border-black">
+                <tr className="border-t-2 border-gray-200 bg-gray-50">
                   <td colSpan={2} className="px-3 py-3 text-xs font-semibold text-gray-500">รวม {rows.length} คน</td>
                   <td className="px-3 py-3 text-right font-semibold text-gray-700">฿{totalSlip.toLocaleString("th-TH")}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-blue-500 print:text-gray-700">
-                    {totalCarryover > 0 ? `+฿${totalCarryover.toLocaleString("th-TH")}` : "—"}
-                  </td>
-                  <td className="px-3 py-3 text-right font-semibold text-blue-500 print:text-gray-700">
-                    {totalThisMonth > 0 ? `+฿${totalThisMonth.toLocaleString("th-TH")}` : "—"}
-                  </td>
+                  <td className="px-3 py-3 text-right font-semibold text-blue-500">{totalCarryover > 0 ? `+฿${totalCarryover.toLocaleString("th-TH")}` : "—"}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-blue-500">{totalThisMonth > 0 ? `+฿${totalThisMonth.toLocaleString("th-TH")}` : "—"}</td>
                   <td className="px-3 py-3 text-right font-bold text-gray-900">฿{totalCalc.toLocaleString("th-TH")}</td>
-                  <td className="px-3 py-3 text-right font-bold text-amber-600 print:text-gray-900">฿{totalComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-orange-500 print:text-gray-700">
-                    {totalDebt > 0 ? `฿${totalDebt.toLocaleString("th-TH")}` : "—"}
-                  </td>
-                  <td colSpan={1} />
+                  <td className="px-3 py-3 text-right font-bold text-amber-600">฿{totalComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-orange-500">{totalDebt > 0 ? `฿${totalDebt.toLocaleString("th-TH")}` : "—"}</td>
+                  <td />
                 </tr>
               </tfoot>
             )}
@@ -929,10 +890,96 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
         </div>
       </div>
 
-      {/* Footnote */}
-      <div className="text-xs text-gray-400 space-y-0.5">
+      {/* Footnote — screen only */}
+      <div className="text-xs text-gray-400 space-y-0.5 print:hidden">
         <p>* ยอดค้าง = ยอดที่ admin ช่วยยอดไว้ยังไม่หักคืน → จะถูกนำไปหักออกจากค่าคอมในเดือนถัดไปโดยอัตโนมัติ</p>
         <p>อัตราค่าคอม {data?.settings.rate}% คำนวณจากยอดคำนวณ เมื่อถึงขั้นต่ำ ฿{data?.settings.threshold.toLocaleString("th-TH")}</p>
+      </div>
+
+      {/* Print-only document — clean, no web design */}
+      <div className="hidden print:block">
+        <style>{`
+          @page { size: A4 landscape; margin: 15mm 12mm; }
+          @media print {
+            .print-doc table { width: 100%; border-collapse: collapse; font-size: 10pt; font-family: 'TH Sarabun New', Sarabun, sans-serif; }
+            .print-doc th { border: 1px solid #000; padding: 5px 7px; background: #f0f0f0; font-weight: 600; white-space: nowrap; }
+            .print-doc td { border: 1px solid #888; padding: 5px 7px; white-space: nowrap; }
+            .print-doc tfoot td { border-top: 2px solid #000; font-weight: 700; background: #f0f0f0; }
+            .print-doc .text-right { text-align: right; }
+            .print-doc .text-center { text-align: center; }
+          }
+        `}</style>
+        <div className="print-doc">
+          <table>
+            <colgroup>
+              <col style={{ width: "28px" }} />
+              <col style={{ width: "110px" }} />
+              <col style={{ width: "90px" }} />
+              <col style={{ width: "80px" }} />
+              <col style={{ width: "85px" }} />
+              <col style={{ width: "90px" }} />
+              <col style={{ width: "80px" }} />
+              <col style={{ width: "75px" }} />
+              <col style={{ width: "80px" }} />
+              <col style={{ width: "120px" }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th className="text-center">#</th>
+                <th>ชื่อเซล</th>
+                <th className="text-right">ยอดสลิปสุทธิ</th>
+                <th className="text-right">+ช่วยยกมา</th>
+                <th className="text-right">+ช่วยเดือนนี้</th>
+                <th className="text-right">=ยอดคำนวณ</th>
+                <th className="text-right">ค่าคอม</th>
+                <th className="text-right">ยอดค้าง</th>
+                <th className="text-center">สถานะ</th>
+                <th>ธนาคาร / เลขบัญชี</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr><td colSpan={10} className="text-center" style={{ padding: "12px" }}>ไม่มีข้อมูล</td></tr>
+              )}
+              {rows.map((row, i) => {
+                const paid = paidSet.has(row.userId);
+                return (
+                  <tr key={row.userId}>
+                    <td className="text-center" style={{ color: "#555" }}>{i + 1}</td>
+                    <td style={{ fontWeight: 600 }}>{row.user.fullName}</td>
+                    <td className="text-right">฿{row.slipAmount.toLocaleString("th-TH")}</td>
+                    <td className="text-right">{row.adjustCarryover > 0 ? `+฿${row.adjustCarryover.toLocaleString("th-TH")}` : "—"}</td>
+                    <td className="text-right">{row.adjustThisMonth > 0 ? `+฿${row.adjustThisMonth.toLocaleString("th-TH")}` : "—"}</td>
+                    <td className="text-right" style={{ fontWeight: 700 }}>฿{row.totalAmount.toLocaleString("th-TH")}</td>
+                    <td className="text-right" style={{ fontWeight: 700 }}>฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                    <td className="text-right">{row.outstandingDebt > 0 ? `฿${row.outstandingDebt.toLocaleString("th-TH")}` : "—"}</td>
+                    <td className="text-center">{paid ? "จ่ายแล้ว" : "รอจ่าย"}</td>
+                    <td>
+                      {row.user.bankName
+                        ? `${row.user.bankName}  ${row.user.bankAccount ?? ""}`
+                        : "ยังไม่กรอกบัญชี"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={2}>รวม {rows.length} คน</td>
+                <td className="text-right">฿{totalSlip.toLocaleString("th-TH")}</td>
+                <td className="text-right">{totalCarryover > 0 ? `+฿${totalCarryover.toLocaleString("th-TH")}` : "—"}</td>
+                <td className="text-right">{totalThisMonth > 0 ? `+฿${totalThisMonth.toLocaleString("th-TH")}` : "—"}</td>
+                <td className="text-right">฿{totalCalc.toLocaleString("th-TH")}</td>
+                <td className="text-right">฿{totalComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                <td className="text-right">{totalDebt > 0 ? `฿${totalDebt.toLocaleString("th-TH")}` : "—"}</td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          </table>
+          <p style={{ fontSize: "8pt", color: "#555", marginTop: "8px" }}>
+            * ยอดค้าง = ยอดช่วยยอดที่ยังไม่หักคืน จะถูกหักออกจากค่าคอมเดือนถัดไปโดยอัตโนมัติ
+          </p>
+        </div>
       </div>
     </div>
   );
