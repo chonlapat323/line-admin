@@ -104,6 +104,9 @@ export const api = {
   getUserAdjustments: (userId: string) =>
     request(`/commission-adjustments/user/${userId}`),
 
+  applyDebtDeduction: (userId: string, month: string) =>
+    request("/commission-adjustments/apply-debt", { method: "POST", body: JSON.stringify({ userId, month }) }),
+
   getOutstandingDebtAll: () =>
     request(`/commission-adjustments/outstanding`),
 
