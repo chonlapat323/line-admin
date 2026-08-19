@@ -400,7 +400,7 @@ export default function VisitsPage() {
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">เซล</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">ทริป</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ภารกิจ</th>
-              <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ยอดสั่งซื้อ</th>
+              <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ยอดออเดอร์</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">ผลตอบรับ</th>
             </tr>
           </thead>
@@ -544,7 +544,7 @@ export default function VisitsPage() {
               </div>
               {selectedVisit.result === "buy" && selectedVisit.orderAmount != null && (
                 <div className="bg-green-50 border border-green-100 rounded-xl p-4 flex items-center justify-between">
-                  <span className="text-sm text-green-700 font-medium">ยอดสั่งซื้อ</span>
+                  <span className="text-sm text-green-700 font-medium">ยอดออเดอร์</span>
                   <span className="text-xl font-bold text-green-700">฿{selectedVisit.orderAmount.toLocaleString("th-TH")}</span>
                 </div>
               )}
