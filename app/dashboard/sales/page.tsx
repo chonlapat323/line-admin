@@ -269,7 +269,7 @@ export default function SalesPage() {
     if (!u) { window.location.replace("/dashboard"); return; }
     const parsed = JSON.parse(u);
     const perms: any[] = parsed.permissions ?? [];
-    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const isLegacyAdmin = parsed.role === "admin";
     const perm = perms.find((p: any) => p.menu === "sales");
     const canView = isLegacyAdmin || (perm?.canView ?? false);
     if (!canView) { window.location.replace("/dashboard"); return; }

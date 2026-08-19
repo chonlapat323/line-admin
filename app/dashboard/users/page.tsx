@@ -97,7 +97,7 @@ export default function UsersPage() {
     if (!u) { window.location.replace("/dashboard"); return; }
     const parsed = JSON.parse(u);
     const perms: any[] = parsed.permissions ?? [];
-    const isLegacyAdmin = parsed.role === "admin" && !perms.length;
+    const isLegacyAdmin = parsed.role === "admin";
     const userPerm = perms.find((p: any) => p.menu === "users");
     const canView = isLegacyAdmin || (userPerm?.canView ?? false);
     if (!canView) { window.location.replace("/dashboard"); return; }
