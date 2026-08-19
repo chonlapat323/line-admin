@@ -88,6 +88,7 @@ export default function UsersPage() {
   const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+  const [canCreate, setCanCreate] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [canDelete, setCanDelete] = useState(false);
 
@@ -100,6 +101,7 @@ export default function UsersPage() {
     const userPerm = perms.find((p: any) => p.menu === "users");
     const canView = isLegacyAdmin || (userPerm?.canView ?? false);
     if (!canView) { window.location.replace("/dashboard"); return; }
+    setCanCreate(isLegacyAdmin || (userPerm?.canCreate ?? false));
     setCanEdit(isLegacyAdmin || (userPerm?.canEdit ?? false));
     setCanDelete(isLegacyAdmin || (userPerm?.canDelete ?? false));
     setAuthorized(true);
@@ -220,7 +222,7 @@ export default function UsersPage() {
           <h2 className="text-xl font-bold text-gray-800">จัดการ Users</h2>
           <p className="text-sm text-gray-400 mt-0.5">{users.length} บัญชีทั้งหมด</p>
         </div>
-        {canEdit && (
+        {canCreate && (
           <button
             onClick={() => setShowModal(true)}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm"

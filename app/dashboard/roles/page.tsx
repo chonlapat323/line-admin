@@ -15,14 +15,14 @@ const MENUS = [
   { menu: "line", label: "LINE" },
 ];
 
-type Permission = { menu: string; label: string; canView: boolean; canEdit: boolean; canDelete: boolean };
+type Permission = { menu: string; label: string; canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean };
 type Role = {
   id: string; name: string; label: string; isSystem: boolean; isActive: boolean;
   permissions: Permission[]; userCount: number; createdAt: string;
 };
 
 function buildEmptyPerms(): Permission[] {
-  return MENUS.map((m) => ({ menu: m.menu, label: m.label, canView: false, canEdit: false, canDelete: false }));
+  return MENUS.map((m) => ({ menu: m.menu, label: m.label, canView: false, canCreate: false, canEdit: false, canDelete: false }));
 }
 
 function PermMatrix({ perms, onChange, disabled }: {
@@ -41,9 +41,9 @@ function PermMatrix({ perms, onChange, disabled }: {
         <thead>
           <tr className="border-b border-gray-100">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 uppercase">หน้า</th>
-            {(["canView", "canEdit", "canDelete"] as const).map((f) => (
+            {(["canView", "canCreate", "canEdit", "canDelete"] as const).map((f) => (
               <th key={f} className="text-center py-2 px-3 text-xs font-semibold text-gray-500 uppercase w-20">
-                <div>{f === "canView" ? "ดู" : f === "canEdit" ? "แก้ไข" : "ลบ"}</div>
+                <div>{f === "canView" ? "ดู" : f === "canCreate" ? "เพิ่ม" : f === "canEdit" ? "แก้ไข" : "ลบ"}</div>
                 {!disabled && (
                   <div className="flex gap-1 justify-center mt-1">
                     <button type="button" onClick={() => setAll(f, true)}
@@ -61,7 +61,7 @@ function PermMatrix({ perms, onChange, disabled }: {
           {perms.map((p) => (
             <tr key={p.menu} className="hover:bg-gray-50">
               <td className="py-2.5 pr-4 text-gray-700 font-medium">{p.label}</td>
-              {(["canView", "canEdit", "canDelete"] as const).map((f) => (
+              {(["canView", "canCreate", "canEdit", "canDelete"] as const).map((f) => (
                 <td key={f} className="py-2.5 px-3 text-center">
                   <input
                     type="checkbox"
@@ -86,6 +86,7 @@ export default function RolesPage() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
+  const [canCreate, setCanCreate] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [canDelete, setCanDelete] = useState(false);
 
@@ -98,10 +99,6 @@ export default function RolesPage() {
   const [editPerms, setEditPerms] = useState<Permission[]>([]);
   const [editLabel, setEditLabel] = useState("");
 
-  const [showAddUser, setShowAddUser] = useState(false);
-  const [addUserForm, setAddUserForm] = useState({ email: "", password: "", fullName: "", roleId: "" });
-  const [addUserSubmitting, setAddUserSubmitting] = useState(false);
-
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (!u) { window.location.replace("/dashboard"); return; }
@@ -111,6 +108,7 @@ export default function RolesPage() {
     const rolePerm = perms.find((p: Permission) => p.menu === "roles");
     const canView = isLegacyAdmin || (rolePerm?.canView ?? false);
     if (!canView) { window.location.replace("/dashboard"); return; }
+    setCanCreate(isLegacyAdmin || (rolePerm?.canCreate ?? false));
     setCanEdit(isLegacyAdmin || (rolePerm?.canEdit ?? false));
     setCanDelete(isLegacyAdmin || (rolePerm?.canDelete ?? false));
     setAuthorized(true);
@@ -133,7 +131,7 @@ export default function RolesPage() {
     setEditLabel(role.label);
     const full = MENUS.map((m) => {
       const found = role.permissions.find((p) => p.menu === m.menu);
-      return { menu: m.menu, label: m.label, canView: found?.canView ?? false, canEdit: found?.canEdit ?? false, canDelete: found?.canDelete ?? false };
+      return { menu: m.menu, label: m.label, canView: found?.canView ?? false, canCreate: found?.canCreate ?? false, canEdit: found?.canEdit ?? false, canDelete: found?.canDelete ?? false };
     });
     setEditPerms(full);
   }
@@ -193,29 +191,6 @@ export default function RolesPage() {
     }
   }
 
-  async function handleCreateUser(e: React.FormEvent) {
-    e.preventDefault();
-    setAddUserSubmitting(true);
-    try {
-      const selectedRole = roles.find((r) => r.id === addUserForm.roleId);
-      await api.createUser({
-        email: addUserForm.email,
-        password: addUserForm.password,
-        fullName: addUserForm.fullName,
-        role: selectedRole?.name ?? "user",
-        roleId: addUserForm.roleId || undefined,
-      });
-      setShowAddUser(false);
-      setAddUserForm({ email: "", password: "", fullName: "", roleId: "" });
-      await loadRoles();
-      toast("เพิ่ม User สำเร็จ", "success");
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : "เพิ่ม User ล้มเหลว", "error");
-    } finally {
-      setAddUserSubmitting(false);
-    }
-  }
-
   if (!authorized) return null;
 
   return (
@@ -226,27 +201,16 @@ export default function RolesPage() {
           <h2 className="text-xl font-bold text-gray-800">จัดการสิทธิ์</h2>
           <p className="text-sm text-gray-400 mt-0.5">{roles.length} Role ทั้งหมด</p>
         </div>
-        {canEdit && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAddUser(true)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-              เพิ่ม User
-            </button>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              เพิ่ม Role
-            </button>
-          </div>
+        {canCreate && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            เพิ่ม Role
+          </button>
         )}
       </div>
 
@@ -451,82 +415,6 @@ export default function RolesPage() {
                 <button type="submit" disabled={submitting}
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60">
                   {submitting ? "กำลังบันทึก..." : "บันทึก"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add User Modal */}
-      {showAddUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-              <div>
-                <h3 className="font-bold text-gray-800">เพิ่ม User ใหม่</h3>
-                <p className="text-xs text-gray-400 mt-0.5">สร้างบัญชีผู้ใช้และกำหนดสิทธิ์</p>
-              </div>
-              <button onClick={() => setShowAddUser(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <form onSubmit={handleCreateUser} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">ชื่อ-นามสกุล <span className="text-red-500">*</span></label>
-                <input
-                  placeholder="ชื่อ นามสกุล"
-                  value={addUserForm.fullName}
-                  onChange={(e) => setAddUserForm({ ...addUserForm, fullName: e.target.value })}
-                  required
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">อีเมล <span className="text-red-500">*</span></label>
-                <input
-                  type="email"
-                  placeholder="email@example.com"
-                  value={addUserForm.email}
-                  onChange={(e) => setAddUserForm({ ...addUserForm, email: e.target.value })}
-                  required
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">รหัสผ่าน <span className="text-red-500">*</span></label>
-                <input
-                  type="password"
-                  placeholder="รหัสผ่าน"
-                  value={addUserForm.password}
-                  onChange={(e) => setAddUserForm({ ...addUserForm, password: e.target.value })}
-                  required
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">สิทธิ์</label>
-                <select
-                  value={addUserForm.roleId}
-                  onChange={(e) => setAddUserForm({ ...addUserForm, roleId: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white text-gray-600"
-                >
-                  <option value="">เลือกสิทธิ์</option>
-                  {roles.filter((r) => r.isActive).map((r) => (
-                    <option key={r.id} value={r.id}>{r.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowAddUser(false)}
-                  className="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
-                  ยกเลิก
-                </button>
-                <button type="submit" disabled={addUserSubmitting}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60">
-                  {addUserSubmitting ? "กำลังบันทึก..." : "เพิ่ม User"}
                 </button>
               </div>
             </form>
