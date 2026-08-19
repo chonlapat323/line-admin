@@ -86,8 +86,12 @@ export const api = {
     request("/settings/slip", { method: "PATCH", body: JSON.stringify(data) }),
 
   getCommissionSettings: () => request("/settings/commission"),
-  updateCommissionSettings: (data: { rate?: number; threshold?: number; tiers?: any[] }) =>
+  updateCommissionSettings: (data: { rate?: number; threshold?: number; tiers?: any[]; proxyRate?: number }) =>
     request("/settings/commission", { method: "PATCH", body: JSON.stringify(data) }),
+
+  getProxyCommissions: (month: string) => request(`/slips/proxy-commission?month=${month}`),
+  toggleSlipProxy: (id: string, isProxy: boolean) =>
+    request(`/slips/${id}/proxy`, { method: "PATCH", body: JSON.stringify({ isProxy }) }),
 
   getCommissionSummary: (month: string) =>
     request(`/visits/commission-summary?month=${month}`),

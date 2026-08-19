@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [slipLoading, setSlipLoading] = useState(false);
 
   const [commissionThreshold, setCommissionThreshold] = useState("");
+  const [proxyRate, setProxyRate] = useState("2");
   const [commissionLoading, setCommissionLoading] = useState(false);
   const [tiers, setTiers] = useState<{ max: string; rate: string }[]>([{ max: "", rate: "" }]);
   const [previewAmount, setPreviewAmount] = useState("");
@@ -59,6 +60,7 @@ export default function SettingsPage() {
         setHasSlip2GoSecret(slip.hasSlip2GoSecret || false);
         setHasEasySlipSecret(slip.hasEasySlipSecret || false);
         setCommissionThreshold(commission.threshold > 0 ? String(commission.threshold) : "");
+        setProxyRate(commission.proxyRate != null ? String(commission.proxyRate) : "2");
         if (commission.tiers && commission.tiers.length > 0) {
           setTiers(commission.tiers.map((t: any) => ({ max: t.max != null ? String(t.max) : "", rate: String(t.rate) })));
         }
@@ -160,12 +162,13 @@ export default function SettingsPage() {
       }
     }
     const threshold = parseFloat(commissionThreshold) || 0;
+    const proxy = parseFloat(proxyRate) || 2;
     const fullTiers = tiers.map((t, i) => ({
       min: getTierMin(i), max: t.max !== "" ? parseFloat(t.max) : null, rate: parseFloat(t.rate) || 0,
     }));
     setCommissionLoading(true);
     try {
-      await api.updateCommissionSettings({ threshold, tiers: fullTiers });
+      await api.updateCommissionSettings({ threshold, tiers: fullTiers, proxyRate: proxy });
       toast("บันทึก Commission Settings สำเร็จ", "success");
     } catch { toast("บันทึกล้มเหลว", "error"); }
     finally { setCommissionLoading(false); }
@@ -322,6 +325,18 @@ export default function SettingsPage() {
                 placeholder="เช่น 50000" min="0" step="any"
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none pr-14" />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">บาท</span>
+            </div>
+          </div>
+
+          {/* Proxy Rate */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">อัตราค่าคอมเก็บแทน (%)</label>
+            <p className="text-xs text-gray-400 mb-2">คำนวณจากยอดสลิปที่ทำเครื่องหมาย "เก็บแทน" (default 2%)</p>
+            <div className="relative">
+              <input type="number" value={proxyRate} onChange={(e) => setProxyRate(e.target.value)}
+                placeholder="2" min="0" max="100" step="0.1"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none pr-8" />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
             </div>
           </div>
 
