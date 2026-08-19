@@ -145,12 +145,8 @@ export default function HistoryPage() {
           ))}
         </div>
 
-        {/* Custom date range — slides in to the right, same row */}
-        <div
-          className="overflow-hidden transition-all duration-200 ease-in-out flex-shrink-0"
-          style={{ maxWidth: period === "custom" ? "320px" : "0px", opacity: period === "custom" ? 1 : 0 }}
-        >
-          <div className="flex items-center gap-2 whitespace-nowrap">
+        {period === "custom" && (
+          <div className="flex items-center gap-2">
             <input
               type="date"
               value={customFrom}
@@ -166,7 +162,7 @@ export default function HistoryPage() {
               className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 bg-white"
             />
           </div>
-        </div>
+        )}
       </div>
 
       {/* Stat cards — fixed height, bar animates width */}

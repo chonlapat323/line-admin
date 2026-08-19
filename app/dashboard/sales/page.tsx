@@ -377,16 +377,15 @@ export default function SalesPage() {
               }`}>{p.label}</button>
           ))}
         </div>
-        <div className="overflow-hidden transition-all duration-200 ease-in-out flex-shrink-0"
-          style={{ maxWidth: period === "custom" ? "320px" : "0px", opacity: period === "custom" ? 1 : 0 }}>
-          <div className="flex items-center gap-2 whitespace-nowrap">
+        {period === "custom" && (
+          <div className="flex items-center gap-2">
             <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
               className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 bg-white" />
             <span className="text-gray-300 text-lg font-light">—</span>
             <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} min={customFrom}
               className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-600 bg-white" />
           </div>
-        </div>
+        )}
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
