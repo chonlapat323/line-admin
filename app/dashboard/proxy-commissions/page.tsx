@@ -116,6 +116,18 @@ function SlipDetailModal({
 }: {
   user: UserSummary; month: string; proxyRate: number; onClose: () => void; onToggle: (id: string, val: boolean) => void;
 }) {
+  const [confirm, setConfirm] = useState<{ id: string; val: boolean; shopName: string } | null>(null);
+
+  function requestToggle(id: string, val: boolean, shopName: string) {
+    setConfirm({ id, val, shopName });
+  }
+
+  function doToggle() {
+    if (!confirm) return;
+    onToggle(confirm.id, confirm.val);
+    setConfirm(null);
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -159,7 +171,7 @@ function SlipDetailModal({
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button
-                        onClick={() => onToggle(s.id, !s.isProxy)}
+                        onClick={() => requestToggle(s.id, !s.isProxy, s.shopName)}
                         className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
                           s.isProxy
                             ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
@@ -187,6 +199,34 @@ function SlipDetailModal({
           </div>
         </div>
       </div>
+
+      {/* Confirm dialog */}
+      {confirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setConfirm(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <h4 className="font-bold text-gray-800 text-base mb-1">ยืนยันการเปลี่ยนสถานะ</h4>
+            <p className="text-sm text-gray-500 mb-4">
+              เปลี่ยน <span className="font-semibold text-gray-700">{confirm.shopName}</span> เป็น{" "}
+              <span className={`font-semibold ${confirm.val ? "text-blue-600" : "text-gray-500"}`}>
+                {confirm.val ? "เก็บแทน" : "ปกติ"}
+              </span>
+              ?
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirm(null)}
+                className="flex-1 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 font-medium">
+                ยกเลิก
+              </button>
+              <button onClick={doToggle}
+                className={`flex-1 py-2.5 text-sm rounded-xl font-semibold text-white transition-colors ${
+                  confirm.val ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-500 hover:bg-gray-600"
+                }`}>
+                ยืนยัน
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
