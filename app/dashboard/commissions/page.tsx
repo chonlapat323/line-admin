@@ -157,8 +157,8 @@ function BreakdownModal({ userId, month, user, onClose }: {
 }
 
 // ─── Pay Modal ───────────────────────────────────────────────────────────────
-function PayModal({ row, month, onClose, onDone }: {
-  row: UserSummary; month: string; onClose: () => void; onDone: () => void;
+function PayModal({ row, month, proxyCommission = 0, onClose, onDone }: {
+  row: UserSummary; month: string; proxyCommission?: number; onClose: () => void; onDone: () => void;
 }) {
   const [note, setNote] = useState("");
   const [slip, setSlip] = useState<File | null>(null);
@@ -166,6 +166,7 @@ function PayModal({ row, month, onClose, onDone }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const totalAmount = row.commission + proxyCommission;
 
   function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -180,7 +181,7 @@ function PayModal({ row, month, onClose, onDone }: {
       const fd = new FormData();
       fd.append("userId", row.userId);
       fd.append("month", month);
-      fd.append("amount", String(row.commission));
+      fd.append("amount", String(totalAmount));
       if (note) fd.append("note", note);
       if (slip) fd.append("slip", slip);
       await api.createCommissionPayment(fd);
@@ -207,9 +208,21 @@ function PayModal({ row, month, onClose, onDone }: {
               <span className="text-gray-500">เลขบัญชี</span>
               <span className="font-semibold text-gray-800 font-mono">{row.user.bankAccount || <span className="text-red-400">ยังไม่กรอก</span>}</span>
             </div>
-            <div className="flex justify-between text-sm border-t border-gray-200 pt-1.5 mt-1.5">
-              <span className="text-gray-500">ยอดที่จ่าย</span>
-              <span className="font-bold text-amber-600 text-base">฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+            <div className="border-t border-gray-200 pt-1.5 mt-1.5 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">ค่าคอมปกติ</span>
+                <span className="font-semibold text-gray-700">฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+              </div>
+              {proxyCommission > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">ค่าคอมเก็บแทน</span>
+                  <span className="font-semibold text-blue-600">+฿{proxyCommission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm border-t border-gray-200 pt-1.5 mt-0.5">
+                <span className="text-gray-500">ยอดที่จ่ายรวม</span>
+                <span className="font-bold text-amber-600 text-base">฿{totalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+              </div>
             </div>
           </div>
 
@@ -1134,6 +1147,8 @@ export default function CommissionsPage() {
   const [adjustingRow, setAdjustingRow] = useState<UserSummary | null>(null);
   const [adjDetailRow, setAdjDetailRow] = useState<UserSummary | null>(null);
   const [canEdit, setCanEdit] = useState(false);
+  const [proxyMap, setProxyMap] = useState<Record<string, number>>({});
+  const [proxyRate, setProxyRate] = useState(0);
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -1153,8 +1168,19 @@ export default function CommissionsPage() {
 
   const load = useCallback((m: string) => {
     setLoading(true);
-    Promise.all([api.getCommissionSummary(m), api.getCommissionPayments(m)])
-      .then(([summary, pays]) => { setData(summary); setPayments(pays); })
+    Promise.all([
+      api.getCommissionSummary(m),
+      api.getCommissionPayments(m),
+      api.getProxyCommissions(m),
+    ])
+      .then(([summary, pays, proxy]) => {
+        setData(summary);
+        setPayments(pays);
+        const map: Record<string, number> = {};
+        (proxy.summary ?? []).forEach((u: any) => { map[u.userId] = u.proxyCommission ?? 0; });
+        setProxyMap(map);
+        setProxyRate(proxy.proxyRate ?? 0);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -1323,14 +1349,15 @@ export default function CommissionsPage() {
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap">=ยอดคำนวณ</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500">สถานะ</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ค่าคอม</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-blue-500 whitespace-nowrap">+เก็บแทน</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500">การจ่าย</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && <tr><td colSpan={11} className="text-center py-12 text-gray-400 text-sm">กำลังคำนวณ...</td></tr>}
+                  {loading && <tr><td colSpan={12} className="text-center py-12 text-gray-400 text-sm">กำลังคำนวณ...</td></tr>}
                   {!loading && filtered.length === 0 && (
                     <tr>
-                      <td colSpan={11} className="text-center py-16">
+                      <td colSpan={12} className="text-center py-16">
                         <p className="text-2xl mb-2">📊</p>
                         <p className="text-sm font-semibold text-gray-600">ไม่มีข้อมูล</p>
                       </td>
@@ -1416,6 +1443,11 @@ export default function CommissionsPage() {
                             {row.commission > 0 ? `฿${row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}` : "—"}
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {(proxyMap[row.userId] ?? 0) > 0
+                            ? <span className="font-semibold text-blue-600">+฿{(proxyMap[row.userId]).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                            : <span className="text-gray-300">—</span>}
+                        </td>
                         <td className="px-4 py-3 text-center">
                           {row.reachedThreshold ? (
                             paid ? (
@@ -1458,6 +1490,11 @@ export default function CommissionsPage() {
                       <td className="px-4 py-3 text-right font-bold text-gray-800">฿{filtered.reduce((s, r) => s + r.totalAmount, 0).toLocaleString("th-TH")}</td>
                       <td />
                       <td className="px-4 py-3 text-right font-bold text-amber-600">฿{filtered.reduce((s, r) => s + r.commission, 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-blue-600">
+                        {filtered.some((r) => (proxyMap[r.userId] ?? 0) > 0)
+                          ? `+฿${filtered.reduce((s, r) => s + (proxyMap[r.userId] ?? 0), 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}`
+                          : "—"}
+                      </td>
                       <td />
                     </tr>
                   </tfoot>
@@ -1472,6 +1509,7 @@ export default function CommissionsPage() {
       {payingRow && (
         <PayModal
           row={payingRow} month={month}
+          proxyCommission={proxyMap[payingRow.userId] ?? 0}
           onClose={() => setPayingRow(null)}
           onDone={() => { setPayingRow(null); load(month); }} />
       )}

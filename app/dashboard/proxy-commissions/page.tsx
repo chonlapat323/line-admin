@@ -201,6 +201,7 @@ export default function ProxyCommissionsPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<UserSummary | null>(null);
   const [search, setSearch] = useState("");
+  const [paidSet, setPaidSet] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -216,9 +217,13 @@ export default function ProxyCommissionsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.getProxyCommissions(month);
+      const [res, pays] = await Promise.all([
+        api.getProxyCommissions(month),
+        api.getCommissionPayments(month),
+      ]);
       setData(res.summary ?? []);
       setProxyRate(res.proxyRate ?? 2);
+      setPaidSet(new Set((pays as any[]).map((p: any) => p.userId)));
     } catch {
       toast("โหลดข้อมูลล้มเหลว", "error");
     } finally {
@@ -325,16 +330,17 @@ export default function ProxyCommissionsPage() {
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">ยอดรวม</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">อัตรา</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-amber-600 whitespace-nowrap">ค่าคอม</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500">สถานะ</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500">รายการ</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={7} className="text-center py-12 text-gray-400 text-sm">กำลังโหลด...</td></tr>
+                <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">กำลังโหลด...</td></tr>
               )}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-16">
+                  <td colSpan={8} className="text-center py-16">
                     <p className="text-2xl mb-2">📊</p>
                     <p className="text-sm font-semibold text-gray-600">
                       {data.length === 0 ? "ไม่มีสลิปเก็บแทนในเดือนนี้" : "ไม่พบรายการที่ตรงกับการค้นหา"}
@@ -357,6 +363,11 @@ export default function ProxyCommissionsPage() {
                   <td className="px-4 py-3 text-right text-gray-500 tabular-nums">{u.proxyRate}%</td>
                   <td className="px-4 py-3 text-right font-bold text-amber-600 tabular-nums">฿{fmt(u.proxyCommission)}</td>
                   <td className="px-4 py-3 text-center">
+                    {paidSet.has(u.userId)
+                      ? <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">✓ จ่ายแล้ว</span>
+                      : <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">รอจ่าย</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
                     <span className="text-xs text-gray-400">ดูรายการ →</span>
                   </td>
                 </tr>
@@ -375,6 +386,9 @@ export default function ProxyCommissionsPage() {
                   <td className="px-4 py-3 text-right text-gray-400 tabular-nums">{proxyRate}%</td>
                   <td className="px-4 py-3 text-right font-bold text-amber-600 tabular-nums">
                     ฿{fmt(filtered.reduce((s, u) => s + u.proxyCommission, 0))}
+                  </td>
+                  <td className="px-4 py-3 text-center text-xs text-gray-400">
+                    {filtered.filter((u) => paidSet.has(u.userId)).length}/{filtered.length} จ่ายแล้ว
                   </td>
                   <td />
                 </tr>
