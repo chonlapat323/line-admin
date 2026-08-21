@@ -766,11 +766,24 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
   const [data, setData] = useState<CommissionData | null>(null);
   const [payments, setPayments] = useState<Payment[]>(parentPayments);
   const [loading, setLoading] = useState(false);
+  const [proxyMap, setProxyMap] = useState<Record<string, number>>({});
+  const [proxyRate, setProxyRate] = useState(0);
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([api.getCommissionSummary(month), api.getCommissionPayments(month)])
-      .then(([summary, pays]) => { setData(summary); setPayments(pays); })
+    Promise.all([
+      api.getCommissionSummary(month),
+      api.getCommissionPayments(month),
+      api.getProxyCommissions(month),
+    ])
+      .then(([summary, pays, proxy]) => {
+        setData(summary);
+        setPayments(pays);
+        const map: Record<string, number> = {};
+        (proxy.summary ?? []).forEach((u: any) => { map[u.userId] = u.proxyCommission ?? 0; });
+        setProxyMap(map);
+        setProxyRate(proxy.proxyRate ?? 0);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [month]);
@@ -785,6 +798,7 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
   const totalThisMonth = rows.reduce((s, r) => s + r.adjustThisMonth, 0);
   const totalCalc      = rows.reduce((s, r) => s + r.totalAmount, 0);
   const totalComm      = rows.reduce((s, r) => s + r.commission, 0);
+  const totalProxy     = rows.reduce((s, r) => s + (proxyMap[r.userId] ?? 0), 0);
   const totalDebt      = rows.reduce((s, r) => s + r.outstandingDebt, 0);
 
   return (
@@ -838,13 +852,14 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
                 <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500">+ช่วยเดือนนี้</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-gray-800">=ยอดคำนวณ</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-amber-600">ค่าคอม</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-blue-500 whitespace-nowrap">+เก็บแทน</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-orange-500">ยอดค้าง*</th>
                 <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={9} className="text-center py-16 text-gray-400 text-sm">กำลังโหลด...</td></tr>}
-              {!loading && rows.length === 0 && <tr><td colSpan={9} className="text-center py-16 text-gray-400 text-sm">ไม่มีข้อมูล</td></tr>}
+              {loading && <tr><td colSpan={10} className="text-center py-16 text-gray-400 text-sm">กำลังโหลด...</td></tr>}
+              {!loading && rows.length === 0 && <tr><td colSpan={10} className="text-center py-16 text-gray-400 text-sm">ไม่มีข้อมูล</td></tr>}
               {rows.map((row, i) => {
                 const paid = paidSet.has(row.userId);
                 const hasAdj = row.adjustCarryover > 0 || row.adjustThisMonth > 0;
@@ -874,6 +889,11 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
                       {row.commission > 0 ? <span className="text-amber-600">฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span> : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-3 py-3 text-right">
+                      {(proxyMap[row.userId] ?? 0) > 0
+                        ? <span className="text-blue-600 font-semibold">+฿{(proxyMap[row.userId]).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-right">
                       {row.outstandingDebt > 0 ? <span className="text-orange-500 font-medium">฿{row.outstandingDebt.toLocaleString("th-TH")}</span> : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-3 py-3">
@@ -894,6 +914,7 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
                   <td className="px-3 py-3 text-right font-semibold text-blue-500">{totalThisMonth > 0 ? `+฿${totalThisMonth.toLocaleString("th-TH")}` : "—"}</td>
                   <td className="px-3 py-3 text-right font-bold text-gray-900">฿{totalCalc.toLocaleString("th-TH")}</td>
                   <td className="px-3 py-3 text-right font-bold text-amber-600">฿{totalComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-blue-600">{totalProxy > 0 ? `+฿${totalProxy.toLocaleString("th-TH", { minimumFractionDigits: 2 })}` : "—"}</td>
                   <td className="px-3 py-3 text-right font-semibold text-orange-500">{totalDebt > 0 ? `฿${totalDebt.toLocaleString("th-TH")}` : "—"}</td>
                   <td />
                 </tr>
@@ -925,16 +946,17 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
         <div className="print-doc">
           <table>
             <colgroup>
-              <col style={{ width: "28px" }} />
-              <col style={{ width: "110px" }} />
-              <col style={{ width: "90px" }} />
-              <col style={{ width: "80px" }} />
-              <col style={{ width: "85px" }} />
-              <col style={{ width: "90px" }} />
+              <col style={{ width: "24px" }} />
+              <col style={{ width: "100px" }} />
               <col style={{ width: "80px" }} />
               <col style={{ width: "75px" }} />
               <col style={{ width: "80px" }} />
-              <col style={{ width: "120px" }} />
+              <col style={{ width: "85px" }} />
+              <col style={{ width: "75px" }} />
+              <col style={{ width: "70px" }} />
+              <col style={{ width: "70px" }} />
+              <col style={{ width: "65px" }} />
+              <col style={{ width: "110px" }} />
             </colgroup>
             <thead>
               <tr>
@@ -945,6 +967,7 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
                 <th className="text-right">+ช่วยเดือนนี้</th>
                 <th className="text-right">=ยอดคำนวณ</th>
                 <th className="text-right">ค่าคอม</th>
+                <th className="text-right">+เก็บแทน</th>
                 <th className="text-right">ยอดค้าง</th>
                 <th className="text-center">สถานะ</th>
                 <th>ธนาคาร / เลขบัญชี</th>
@@ -952,10 +975,11 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
             </thead>
             <tbody>
               {rows.length === 0 && (
-                <tr><td colSpan={10} className="text-center" style={{ padding: "12px" }}>ไม่มีข้อมูล</td></tr>
+                <tr><td colSpan={11} className="text-center" style={{ padding: "12px" }}>ไม่มีข้อมูล</td></tr>
               )}
               {rows.map((row, i) => {
                 const paid = paidSet.has(row.userId);
+                const proxy = proxyMap[row.userId] ?? 0;
                 return (
                   <tr key={row.userId}>
                     <td className="text-center" style={{ color: "#555" }}>{i + 1}</td>
@@ -965,6 +989,7 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
                     <td className="text-right">{row.adjustThisMonth > 0 ? `+฿${row.adjustThisMonth.toLocaleString("th-TH")}` : "—"}</td>
                     <td className="text-right" style={{ fontWeight: 700 }}>฿{row.totalAmount.toLocaleString("th-TH")}</td>
                     <td className="text-right" style={{ fontWeight: 700 }}>฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                    <td className="text-right">{proxy > 0 ? `+฿${proxy.toLocaleString("th-TH", { minimumFractionDigits: 2 })}` : "—"}</td>
                     <td className="text-right">{row.outstandingDebt > 0 ? `฿${row.outstandingDebt.toLocaleString("th-TH")}` : "—"}</td>
                     <td className="text-center">{paid ? "จ่ายแล้ว" : "รอจ่าย"}</td>
                     <td>
@@ -984,6 +1009,7 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
                 <td className="text-right">{totalThisMonth > 0 ? `+฿${totalThisMonth.toLocaleString("th-TH")}` : "—"}</td>
                 <td className="text-right">฿{totalCalc.toLocaleString("th-TH")}</td>
                 <td className="text-right">฿{totalComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                <td className="text-right">{totalProxy > 0 ? `+฿${totalProxy.toLocaleString("th-TH", { minimumFractionDigits: 2 })}` : "—"}</td>
                 <td className="text-right">{totalDebt > 0 ? `฿${totalDebt.toLocaleString("th-TH")}` : "—"}</td>
                 <td colSpan={2} />
               </tr>
@@ -991,6 +1017,7 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
           </table>
           <p style={{ fontSize: "8pt", color: "#555", marginTop: "8px" }}>
             * ยอดค้าง = ยอดช่วยยอดที่ยังไม่หักคืน จะถูกหักออกจากค่าคอมเดือนถัดไปโดยอัตโนมัติ
+            {proxyRate > 0 && ` · เก็บแทน = ค่าคอมสลิปที่เซล์เก็บเงินแทนกัน (${proxyRate}%)`}
           </p>
         </div>
       </div>
