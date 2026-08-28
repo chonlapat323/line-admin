@@ -91,6 +91,8 @@ export default function ReportsPage() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
   const [commSummaryRow, setCommSummaryRow] = useState<CommissionSummaryRow | null>(null);
+  const [proxyCommission, setProxyCommission] = useState(0);
+  const [proxyRate, setProxyRate] = useState(0);
   const [adjLogs, setAdjLogs] = useState<any[]>([]);
   const [showAdjLog, setShowAdjLog] = useState(false);
   const [showDebtSlips, setShowDebtSlips] = useState(false);
@@ -140,10 +142,14 @@ export default function ReportsPage() {
     Promise.all([
       api.getSlipSubmissions({ filterUserId: selectedUserId, limit: 1000, dateFrom: df, dateTo: dt }),
       api.getCommissionSummary(commMonth),
-    ]).then(([slipRes, summaryRes]: any[]) => {
+      api.getProxyCommissions(commMonth),
+    ]).then(([slipRes, summaryRes, proxyRes]: any[]) => {
       setSlips(slipRes?.data ?? []);
       const row = (summaryRes?.summary ?? []).find((r: any) => r.userId === selectedUserId) ?? null;
       setCommSummaryRow(row);
+      const proxyEntry = (proxyRes?.summary ?? []).find((u: any) => u.userId === selectedUserId);
+      setProxyCommission(proxyEntry?.proxyCommission ?? 0);
+      setProxyRate(proxyRes?.proxyRate ?? 0);
     }).catch(console.error)
       .finally(() => setLoadingSlips(false));
   }, [selectedUserId, tab, commMonth]);
@@ -512,12 +518,32 @@ export default function ReportsPage() {
                     </td>
                   </tr>
                   {/* ค่าคอม */}
-                  <tr className={commSummaryRow.outstandingDebt > 0 ? "border-b border-gray-50" : ""}>
+                  <tr className="border-b border-gray-50">
                     <td className="px-5 py-3 font-semibold text-green-700">ค่าคอม</td>
                     <td className="px-5 py-3 text-right font-bold text-green-700 tabular-nums text-base">
                       ฿{commSummaryRow.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
+                  {/* ค่าคอมเก็บแทน */}
+                  {proxyCommission > 0 && (
+                    <tr className="border-b border-gray-50">
+                      <td className="px-5 py-3 font-semibold text-blue-600">
+                        + ค่าคอมเก็บแทน {proxyRate > 0 && <span className="text-xs font-normal text-blue-400">({proxyRate}%)</span>}
+                      </td>
+                      <td className="px-5 py-3 text-right font-bold text-blue-600 tabular-nums text-base">
+                        ฿{proxyCommission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
+                  {/* รวมค่าคอมทั้งหมด */}
+                  {proxyCommission > 0 && (
+                    <tr className={commSummaryRow.outstandingDebt > 0 ? "border-b border-gray-50" : ""}>
+                      <td className="px-5 py-3 font-bold text-gray-800">รวมค่าคอมทั้งหมด</td>
+                      <td className="px-5 py-3 text-right font-bold text-gray-900 tabular-nums text-base">
+                        ฿{(commSummaryRow.commission + proxyCommission).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
                   {/* ยอดค้างที่ยังเหลือ (ถ้ายังไม่ครบ) */}
                   {commSummaryRow.outstandingDebt > 0 && (
                     <tr>
@@ -652,7 +678,7 @@ export default function ReportsPage() {
                   )}
                 </div>
                 <div className="pt-2 border-t border-pink-200">
-                  <p className="text-xs text-gray-500">รวมค่าคอม (บาท)</p>
+                  <p className="text-xs text-gray-500">ค่าคอม (บาท)</p>
                   <p className="text-xl font-bold text-green-700 tabular-nums">
                     {(commSummaryRow?.commission ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                   </p>
@@ -660,6 +686,22 @@ export default function ReportsPage() {
                     <p className="text-xs text-gray-400 mt-0.5">ยังไม่ถึงเป้า</p>
                   )}
                 </div>
+                {proxyCommission > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500">+ เก็บแทน {proxyRate > 0 ? `${proxyRate}%` : ""}</p>
+                    <p className="text-lg font-bold text-blue-600 tabular-nums">
+                      ฿{proxyCommission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                )}
+                {proxyCommission > 0 && (
+                  <div className="pt-2 border-t border-pink-200">
+                    <p className="text-xs text-gray-500">รวมค่าคอม (บาท)</p>
+                    <p className="text-xl font-bold text-gray-900 tabular-nums">
+                      ฿{((commSummaryRow?.commission ?? 0) + proxyCommission).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                )}
                 {(commSummaryRow?.outstandingDebt ?? 0) > 0 && (
                   <div>
                     <p className="text-xs text-orange-500">ยอดค้างคงเหลือ</p>
