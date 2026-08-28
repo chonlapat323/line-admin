@@ -1265,6 +1265,9 @@ export default function CommissionsPage() {
             <p className="text-xs text-gray-400 mb-1">อัตราค่าคอม</p>
             <p className="text-2xl font-bold text-gray-800">{data.settings.rate}%</p>
             <p className="text-xs text-gray-400 mt-1">ขั้นต่ำ ฿{data.settings.threshold.toLocaleString("th-TH")}</p>
+            {proxyRate > 0 && (
+              <p className="text-xs text-blue-500 mt-1">เก็บแทน {proxyRate}%</p>
+            )}
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <p className="text-xs text-gray-400 mb-1">ถึงเป้า / จ่ายแล้ว</p>
