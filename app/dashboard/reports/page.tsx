@@ -20,7 +20,7 @@ const PRINT_STYLE = `
 
 interface User { id: string; fullName: string; email: string; role: string; }
 interface VisitRecord {
-  id: string; shopName: string; province: string; district?: string;
+  id: string; shopName: string; province: string; district?: string; shopPhone?: string;
   customerType: string; visitType?: string; tripType?: string; result?: string;
   details?: string; orderAmount?: number | null; createdAt: string;
 }
@@ -335,8 +335,8 @@ export default function ReportsPage() {
                       const r = RESULT_LABEL[v.result ?? ""] ?? { label: v.result ?? "—", color: "bg-gray-100 text-gray-500" };
                       const isBkk = v.province?.includes("กรุงเทพ") || v.province?.includes("กทม");
                       const locationLabel = isBkk
-                        ? v.district ? `${v.district} กทม.` : "กทม."
-                        : v.province;
+                        ? v.district ? `เขต${v.district} กทม.` : "กทม."
+                        : v.district ? `${v.province} · อ.${v.district}` : v.province;
                       return (
                         <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                           <td className="px-3 py-2.5 text-gray-400 text-xs">{i + 1}.</td>
@@ -346,6 +346,7 @@ export default function ReportsPage() {
                           <td className="px-3 py-2.5">
                             <p className="font-medium text-gray-800 text-sm">{v.shopName}</p>
                             <p className="text-xs text-gray-400 mt-0.5">{locationLabel}</p>
+                            {v.shopPhone && <p className="text-xs text-gray-400">{v.shopPhone}</p>}
                           </td>
                           <td className="px-3 py-2.5 text-xs text-gray-600">{VISIT_TYPE_LABEL[v.visitType ?? ""] || VISIT_TYPE_LABEL[v.tripType ?? ""] || v.visitType || v.tripType || "—"}</td>
                           <td className="px-3 py-2.5 text-xs text-gray-800 print:hidden">
