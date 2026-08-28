@@ -1239,10 +1239,13 @@ export default function CommissionsPage() {
     });
   }, [data, statusFilter, search]);
 
-  const reachedCount = data?.summary.filter((r) => r.reachedThreshold).length ?? 0;
-  const paidCount = payments.length;
-  const unpaidCount = reachedCount - paidCount;
-  const totalToPayAll = data?.summary.filter(r => r.reachedThreshold).reduce((s, r) => s + r.commission, 0) ?? 0;
+  const reachedCount    = data?.summary.filter((r) => r.reachedThreshold).length ?? 0;
+  const notReachedCount = (data?.summary.length ?? 0) - reachedCount;
+  const paidCount    = payments.length;
+  const unpaidCount  = reachedCount - paidCount;
+  const totalToPayAll      = data?.summary.filter(r => r.reachedThreshold).reduce((s, r) => s + r.commission, 0) ?? 0;
+  const totalProxyToPayAll = (data?.summary ?? []).filter(r => r.reachedThreshold).reduce((s, r) => s + (proxyMap[r.userId] ?? 0), 0);
+  const grandTotalToPayAll = totalToPayAll + totalProxyToPayAll;
   const missingBankCount = filtered.filter((r) => r.reachedThreshold && (!r.user.bankName || !r.user.bankAccount)).length;
 
   return (
@@ -1270,16 +1273,22 @@ export default function CommissionsPage() {
             )}
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <p className="text-xs text-gray-400 mb-1">ถึงเป้า / จ่ายแล้ว</p>
+            <p className="text-xs text-gray-400 mb-1">ถึงเป้า / ไม่ถึงเป้า</p>
             <p className="text-xl font-bold text-gray-800">
-              {reachedCount} <span className="text-gray-300">/</span> <span className="text-green-600">{paidCount}</span>
+              {reachedCount} <span className="text-gray-300">/</span> <span className="text-gray-500">{notReachedCount}</span>
               <span className="text-sm font-normal text-gray-400 ml-1">คน</span>
             </p>
-            {unpaidCount > 0 && <p className="text-xs text-amber-600 mt-1">รอจ่าย {unpaidCount} คน</p>}
+            {unpaidCount > 0
+              ? <p className="text-xs text-amber-600 mt-1">จ่ายแล้ว {paidCount} / รอจ่าย {unpaidCount} คน</p>
+              : reachedCount > 0 && <p className="text-xs text-green-600 mt-1">จ่ายครบแล้ว {paidCount} คน</p>}
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <p className="text-xs text-gray-400 mb-1">ยอดรวมที่ต้องจ่าย</p>
-            <p className="text-xl font-bold text-amber-600">฿{totalToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+            <p className="text-xl font-bold text-amber-600">฿{grandTotalToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+            <p className="text-xs text-gray-400 mt-1">ค่าคอม ฿{totalToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+            {totalProxyToPayAll > 0 && (
+              <p className="text-xs text-blue-500">เก็บแทน ฿{totalProxyToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+            )}
           </div>
           <div className="bg-green-50 rounded-2xl border border-green-100 shadow-sm p-4">
             <p className="text-xs text-green-600 mb-1">จ่ายไปแล้ว</p>
