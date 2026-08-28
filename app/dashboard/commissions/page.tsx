@@ -1246,6 +1246,7 @@ export default function CommissionsPage() {
   const totalToPayAll      = data?.summary.filter(r => r.reachedThreshold).reduce((s, r) => s + r.commission, 0) ?? 0;
   const totalProxyToPayAll = (data?.summary ?? []).filter(r => r.reachedThreshold).reduce((s, r) => s + (proxyMap[r.userId] ?? 0), 0);
   const grandTotalToPayAll = totalToPayAll + totalProxyToPayAll;
+  const totalProxyPaidAll  = (data?.summary ?? []).filter(r => r.reachedThreshold && paidSet.has(r.userId)).reduce((s, r) => s + (proxyMap[r.userId] ?? 0), 0);
   const missingBankCount = filtered.filter((r) => r.reachedThreshold && (!r.user.bankName || !r.user.bankAccount)).length;
 
   return (
@@ -1263,37 +1264,57 @@ export default function CommissionsPage() {
 
       {/* Summary cards */}
       {data && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <p className="text-xs text-gray-400 mb-1">อัตราค่าคอม</p>
-            <p className="text-2xl font-bold text-gray-800">{data.settings.rate}%</p>
-            <p className="text-xs text-gray-400 mt-1">ขั้นต่ำ ฿{data.settings.threshold.toLocaleString("th-TH")}</p>
-            {proxyRate > 0 && (
-              <p className="text-xs text-blue-500 mt-1">เก็บแทน {proxyRate}%</p>
-            )}
+        <div className="space-y-3 print:hidden">
+          {/* Row 1: ค่าคอมปกติ */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <p className="text-xs text-gray-400 mb-1">อัตราค่าคอม</p>
+              <p className="text-2xl font-bold text-gray-800">{data.settings.rate}%</p>
+              <p className="text-xs text-gray-400 mt-1">ขั้นต่ำ ฿{data.settings.threshold.toLocaleString("th-TH")}</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <p className="text-xs text-gray-400 mb-1">ถึงเป้า / ไม่ถึงเป้า</p>
+              <p className="text-xl font-bold text-gray-800">
+                {reachedCount} <span className="text-gray-300">/</span> <span className="text-gray-500">{notReachedCount}</span>
+                <span className="text-sm font-normal text-gray-400 ml-1">คน</span>
+              </p>
+              {unpaidCount > 0
+                ? <p className="text-xs text-amber-600 mt-1">จ่ายแล้ว {paidCount} / รอจ่าย {unpaidCount} คน</p>
+                : reachedCount > 0 && <p className="text-xs text-green-600 mt-1">จ่ายครบแล้ว {paidCount} คน</p>}
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <p className="text-xs text-gray-400 mb-1">ยอดรวมที่ต้องจ่าย</p>
+              <p className="text-xl font-bold text-amber-600">฿{grandTotalToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-gray-400 mt-1">ค่าคอม ฿{totalToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+              {totalProxyToPayAll > 0 && (
+                <p className="text-xs text-blue-500">เก็บแทน ฿{totalProxyToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+              )}
+            </div>
+            <div className="bg-green-50 rounded-2xl border border-green-100 shadow-sm p-4">
+              <p className="text-xs text-green-600 mb-1">จ่ายไปแล้ว</p>
+              <p className="text-xl font-bold text-green-700">฿{payments.reduce((s, p) => s + p.amount, 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+            </div>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <p className="text-xs text-gray-400 mb-1">ถึงเป้า / ไม่ถึงเป้า</p>
-            <p className="text-xl font-bold text-gray-800">
-              {reachedCount} <span className="text-gray-300">/</span> <span className="text-gray-500">{notReachedCount}</span>
-              <span className="text-sm font-normal text-gray-400 ml-1">คน</span>
-            </p>
-            {unpaidCount > 0
-              ? <p className="text-xs text-amber-600 mt-1">จ่ายแล้ว {paidCount} / รอจ่าย {unpaidCount} คน</p>
-              : reachedCount > 0 && <p className="text-xs text-green-600 mt-1">จ่ายครบแล้ว {paidCount} คน</p>}
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <p className="text-xs text-gray-400 mb-1">ยอดรวมที่ต้องจ่าย</p>
-            <p className="text-xl font-bold text-amber-600">฿{grandTotalToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
-            <p className="text-xs text-gray-400 mt-1">ค่าคอม ฿{totalToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
-            {totalProxyToPayAll > 0 && (
-              <p className="text-xs text-blue-500">เก็บแทน ฿{totalProxyToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
-            )}
-          </div>
-          <div className="bg-green-50 rounded-2xl border border-green-100 shadow-sm p-4">
-            <p className="text-xs text-green-600 mb-1">จ่ายไปแล้ว</p>
-            <p className="text-xl font-bold text-green-700">฿{payments.reduce((s, p) => s + p.amount, 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
-          </div>
+          {/* Row 2: ค่าคอมเก็บแทน — แสดงเฉพาะเมื่อมี proxyRate */}
+          {proxyRate > 0 && (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-blue-50 rounded-2xl border border-blue-100 shadow-sm p-4">
+                <p className="text-xs text-blue-500 mb-1">อัตราค่าคอมเก็บแทน</p>
+                <p className="text-2xl font-bold text-blue-700">{proxyRate}%</p>
+                <p className="text-xs text-blue-400 mt-1">คำนวณจากสลิปที่ isProxy = true</p>
+              </div>
+              <div className="bg-blue-50 rounded-2xl border border-blue-100 shadow-sm p-4">
+                <p className="text-xs text-blue-500 mb-1">ยอดรวมค่าคอมเก็บแทนที่ต้องจ่าย</p>
+                <p className="text-xl font-bold text-blue-700">฿{totalProxyToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs text-blue-400 mt-1">เฉพาะเซลที่ถึงเป้า {reachedCount} คน</p>
+              </div>
+              <div className="bg-blue-50 rounded-2xl border border-blue-100 shadow-sm p-4">
+                <p className="text-xs text-blue-500 mb-1">ค่าคอมเก็บแทนจ่ายไปแล้ว</p>
+                <p className="text-xl font-bold text-blue-700">฿{totalProxyPaidAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs text-blue-400 mt-1">รอจ่าย ฿{(totalProxyToPayAll - totalProxyPaidAll).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
