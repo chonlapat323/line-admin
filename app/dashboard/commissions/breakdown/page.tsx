@@ -12,6 +12,7 @@ interface SlipRecord {
   slipStatus: string;
   createdAt: string;
   debtDeducted?: number | null;
+  isProxy?: boolean;
 }
 
 interface AdjRecord {
@@ -103,6 +104,7 @@ export default function BreakdownPage() {
   const [loadingAdjs, setLoadingAdjs]       = useState(false);
   const [tiers, setTiers]                   = useState<CommissionTier[]>([]);
   const [flatRate, setFlatRate]             = useState(0);
+  const [proxyRate, setProxyRate]           = useState(0);
   const [previewImg, setPreviewImg]         = useState<string | null>(null);
 
   useEffect(() => {
@@ -111,6 +113,7 @@ export default function BreakdownPage() {
         setUsers((u as User[]).filter((x: User) => x.role !== "admin"));
         setTiers((s as any).tiers ?? []);
         setFlatRate((s as any).rate ?? 0);
+        setProxyRate((s as any).proxyRate ?? 0);
       })
       .catch(console.error);
   }, []);
@@ -145,19 +148,26 @@ export default function BreakdownPage() {
   );
 
   const commSlips    = slips.filter((s) => s.slipStatus === "verified" || s.slipStatus === "approved");
-  const totalSlip    = commSlips.reduce((s, r) => s + (r.amount ?? 0), 0);
   const totalAllSlip = slips.reduce((s, r) => s + (r.amount ?? 0), 0);
+
+  // แยก slip ปกติ vs เก็บแทน
+  const regularCommSlips = commSlips.filter((s) => !s.isProxy);
+  const proxyCommSlips   = commSlips.filter((s) => s.isProxy);
+  const totalSlip        = regularCommSlips.reduce((s, r) => s + (r.amount ?? 0), 0);
+  const totalProxySlip   = proxyCommSlips.reduce((s, r) => s + (r.amount ?? 0), 0);
 
   // Only loan_help adjustments count toward the commission base (shown in adj table)
   const loanHelpAdjs    = monthAdjs.filter((a) => a.type === "loan_help");
   const adjustThisMonth = loanHelpAdjs.reduce((s, a) => s + a.amount, 0);
 
-  // debtDeducted จาก slip เดือนนี้ต้องหักออกจากฐานค่าคอม
-  const totalDeducted = commSlips.reduce((s, r) => s + (r.debtDeducted ?? 0), 0);
+  // debtDeducted หักจาก slip ปกติเท่านั้น
+  const totalDeducted = regularCommSlips.reduce((s, r) => s + (r.debtDeducted ?? 0), 0);
 
   const totalForComm = totalSlip - totalDeducted + adjustThisMonth;
   const { breakdown: tierBreakdown, total: commTotal } = calcTierCommission(totalForComm, tiers);
-  const flatComm = tiers.length === 0 ? Math.round(totalForComm * flatRate) / 100 : 0;
+  const flatComm  = tiers.length === 0 ? Math.round(totalForComm * flatRate) / 100 : 0;
+  const proxyComm = Math.round(totalProxySlip * proxyRate) / 100;
+  const grandTotal = (tiers.length > 0 ? commTotal : flatComm) + proxyComm;
 
   // ยอดค้างสะสม ณ สิ้นเดือนที่ดู = ยอดช่วยก่อนเดือนนี้ + ยอดหักคืน ≤ เดือนนี้
   const priorPositive = adjs.filter((a) => a.month < selectedMonth && a.amount > 0).reduce((s, a) => s + a.amount, 0);
@@ -258,28 +268,29 @@ export default function BreakdownPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-white">#</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-white">ชื่อร้าน</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-white">ยอด</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-white">หมายเหตุ</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-white">วันที่</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-white">สถานะ</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-white">สลิป</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-white">สถานะเก็บแทน</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-white">หมายเหตุ</th>
                 </tr>
               </thead>
               <tbody>
                 {!selectedUserId && (
                   <tr>
-                    <td colSpan={7} className="text-center py-16 text-gray-400 text-sm">
+                    <td colSpan={8} className="text-center py-16 text-gray-400 text-sm">
                       เลือกชื่อเซลจากรายการด้านซ้าย
                     </td>
                   </tr>
                 )}
                 {selectedUserId && loadingSlips && (
                   <tr>
-                    <td colSpan={7} className="text-center py-16 text-gray-400 text-sm">กำลังโหลด...</td>
+                    <td colSpan={8} className="text-center py-16 text-gray-400 text-sm">กำลังโหลด...</td>
                   </tr>
                 )}
                 {selectedUserId && !loadingSlips && slips.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="text-center py-16 text-gray-400 text-sm">
+                    <td colSpan={8} className="text-center py-16 text-gray-400 text-sm">
                       ไม่มีรายการสลิปใน{monthLabel(selectedMonth)}
                     </td>
                   </tr>
@@ -302,7 +313,6 @@ export default function BreakdownPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{s.details || "—"}</td>
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                         {new Date(s.createdAt).toLocaleDateString("th-TH", {
                           day: "numeric", month: "short", year: "numeric",
@@ -325,6 +335,12 @@ export default function BreakdownPage() {
                           <span className="text-gray-300 text-xs">—</span>
                         )}
                       </td>
+                      <td className="px-4 py-3">
+                        {s.isProxy
+                          ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">เก็บแทน</span>
+                          : <span className="text-xs text-gray-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{s.details || "—"}</td>
                     </tr>
                   );
                 })}
@@ -338,7 +354,7 @@ export default function BreakdownPage() {
                     <td className="px-4 py-3 text-right font-bold text-gray-800 tabular-nums">
                       {totalAllSlip.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                     </td>
-                    <td colSpan={4} />
+                    <td colSpan={5} />
                   </tr>
                 </tfoot>
               )}
@@ -429,14 +445,24 @@ export default function BreakdownPage() {
 
           <div className="space-y-3">
             <div>
-              <p className="text-xs text-gray-500">ยอดสลิปสุทธิ (QR ✓ + อนุมัติ)</p>
+              <p className="text-xs text-gray-500">ยอดสลิปปกติ (QR ✓ + อนุมัติ)</p>
               <p className="text-xl font-bold text-gray-800 tabular-nums">
                 ฿{totalSlip.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
               </p>
-              {commSlips.length > 0 && (
-                <p className="text-xs text-gray-400">{commSlips.length} สลิป</p>
+              {regularCommSlips.length > 0 && (
+                <p className="text-xs text-gray-400">{regularCommSlips.length} สลิป</p>
               )}
             </div>
+
+            {totalProxySlip > 0 && (
+              <div>
+                <p className="text-xs text-gray-500">ยอดสลิปเก็บแทน</p>
+                <p className="text-xl font-bold text-blue-700 tabular-nums">
+                  ฿{totalProxySlip.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-gray-400">{proxyCommSlips.length} สลิป</p>
+              </div>
+            )}
 
             {totalDeducted > 0 && (
               <div>
@@ -457,7 +483,7 @@ export default function BreakdownPage() {
             )}
 
             <div className="pt-2 border-t border-pink-200">
-              <p className="text-xs text-gray-500">= ยอดคำนวณค่าคอม</p>
+              <p className="text-xs text-gray-500">= ยอดคำนวณค่าคอม (ปกติ)</p>
               <p className="text-2xl font-bold text-gray-800 tabular-nums">
                 ฿{totalForComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
               </p>
@@ -483,11 +509,20 @@ export default function BreakdownPage() {
               </div>
             ) : null}
 
-            {(tiers.length > 0 || flatRate > 0) && totalForComm > 0 && (
+            {totalProxySlip > 0 && proxyRate > 0 && (
+              <div>
+                <p className="text-xs text-gray-500">คอมเก็บแทน {proxyRate}%</p>
+                <p className="text-lg font-bold text-blue-700 tabular-nums">
+                  ฿{proxyComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            )}
+
+            {(tiers.length > 0 || flatRate > 0) && (totalForComm > 0 || totalProxySlip > 0) && (
               <div className="pt-2 border-t border-pink-200">
                 <p className="text-xs text-gray-500">รวมค่าคอม (บาท)</p>
                 <p className="text-xl font-bold text-green-700 tabular-nums">
-                  ฿{(tiers.length > 0 ? commTotal : flatComm).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                  ฿{grandTotal.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                 </p>
               </div>
             )}

@@ -928,6 +928,7 @@ function ReportTab({ payments: parentPayments, defaultMonth }: {
       <div className="text-xs text-gray-400 space-y-0.5 print:hidden">
         <p>* ยอดค้าง = ยอดที่ admin ช่วยยอดไว้ยังไม่หักคืน → จะถูกนำไปหักออกจากค่าคอมในเดือนถัดไปโดยอัตโนมัติ</p>
         <p>อัตราค่าคอม {data?.settings.rate}% คำนวณจากยอดคำนวณ เมื่อถึงขั้นต่ำ ฿{data?.settings.threshold.toLocaleString("th-TH")}</p>
+        {proxyRate > 0 && <p>อัตราค่าคอมเก็บแทน {proxyRate}% คำนวณจากยอดสลิปที่ isProxy = true (ไม่มีเกณฑ์ขั้นต่ำ)</p>}
       </div>
 
       {/* Print-only document — clean, no web design */}
