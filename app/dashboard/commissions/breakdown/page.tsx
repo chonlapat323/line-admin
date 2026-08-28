@@ -483,7 +483,7 @@ export default function BreakdownPage() {
             )}
 
             <div className="pt-2 border-t border-pink-200">
-              <p className="text-xs text-gray-500">= ยอดคำนวณค่าคอม (ปกติ)</p>
+              <p className="text-xs text-gray-500">= ยอดรวม Slip (ปกติ)</p>
               <p className="text-2xl font-bold text-gray-800 tabular-nums">
                 ฿{totalForComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
               </p>
