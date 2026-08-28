@@ -483,9 +483,9 @@ export default function BreakdownPage() {
             )}
 
             <div className="pt-2 border-t border-pink-200">
-              <p className="text-xs text-gray-500">= ยอดรวม Slip (ปกติ)</p>
+              <p className="text-xs text-gray-500">= ยอดรวมสลิปทั้งหมด</p>
               <p className="text-2xl font-bold text-gray-800 tabular-nums">
-                ฿{totalForComm.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                ฿{(totalForComm + totalProxySlip).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
               </p>
             </div>
 
