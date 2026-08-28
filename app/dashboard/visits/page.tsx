@@ -29,6 +29,7 @@ interface VisitRecord {
   visitType?: string;
   result?: string;
   details?: string;
+  shopPhone?: string;
   orderAmount?: number | null;
   imageUrls: string[];
   createdAt: string;
@@ -453,7 +454,12 @@ export default function VisitsPage() {
                   </td>
                   <td className="px-5 py-4">
                     <p className="font-medium text-gray-800">{v.shopName}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{v.district ? `${v.province} · ${v.district}` : v.province}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {(v.province?.includes("กรุงเทพ") || v.province?.includes("กทม"))
+                        ? v.district ? `เขต${v.district} กทม.` : "กทม."
+                        : v.district ? `${v.province} · อ.${v.district}` : v.province}
+                    </p>
+                    {v.shopPhone && <p className="text-xs text-gray-400">{v.shopPhone}</p>}
                   </td>
                   <td className="px-5 py-4 hidden md:table-cell text-gray-600">{v.user?.fullName || "-"}</td>
                   <td className="px-5 py-4 hidden md:table-cell text-xs text-gray-500">{v.tripType ? TRIP_LABEL[v.tripType] : "-"}</td>
@@ -508,7 +514,12 @@ export default function VisitsPage() {
             <div className="flex items-start justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="text-lg font-bold text-gray-800">{selectedVisit.shopName}</h2>
-                <p className="text-sm text-gray-400 mt-0.5">{selectedVisit.district ? `${selectedVisit.province} · ${selectedVisit.district}` : selectedVisit.province}</p>
+                <p className="text-sm text-gray-400 mt-0.5">
+                  {(selectedVisit.province?.includes("กรุงเทพ") || selectedVisit.province?.includes("กทม"))
+                    ? selectedVisit.district ? `เขต${selectedVisit.district} กทม.` : "กทม."
+                    : selectedVisit.district ? `${selectedVisit.province} · อ.${selectedVisit.district}` : selectedVisit.province}
+                </p>
+                {selectedVisit.shopPhone && <p className="text-sm text-gray-400">{selectedVisit.shopPhone}</p>}
               </div>
               <button onClick={() => setSelectedVisit(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
