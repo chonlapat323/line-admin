@@ -271,7 +271,7 @@ export default function BreakdownPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-white">วันที่</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-white">สถานะ</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-white">สลิป</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-white">สถานะเก็บแทน</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-white">คอมมิชชั่น</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-white">หมายเหตุ</th>
                 </tr>
               </thead>
