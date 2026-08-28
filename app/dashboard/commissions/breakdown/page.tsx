@@ -482,12 +482,14 @@ export default function BreakdownPage() {
               </div>
             )}
 
-            <div className="pt-2 border-t border-pink-200">
+            <div>
               <p className="text-xs text-gray-500">= ยอดรวมสลิปทั้งหมด</p>
               <p className="text-2xl font-bold text-gray-800 tabular-nums">
                 ฿{(totalForComm + totalProxySlip).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
               </p>
             </div>
+
+            <div className="border-t border-pink-200" />
 
             {tiers.length > 0 ? (
               tierBreakdown
