@@ -118,6 +118,11 @@ export default function VisitsPage() {
   });
   const [flyToProvince, setFlyToProvince] = useState<string | undefined>();
   const [selectedVisit, setSelectedVisit] = useState<VisitRecord | null>(null);
+  const [editingVisit, setEditingVisit] = useState<VisitRecord | null>(null);
+  const [editFields, setEditFields] = useState<{ shopName: string; result: string; orderAmount: string; details: string }>({ shopName: "", result: "", orderAmount: "", details: "" });
+  const [saving, setSaving] = useState(false);
+  const [deletingVisit, setDeletingVisit] = useState<VisitRecord | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
   const [tablePage, setTablePage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -137,6 +142,16 @@ export default function VisitsPage() {
   // Fetch whenever filter or page changes
   const filterKey = `${period}|${customFrom}|${customTo}|${provinceFilter}|${resultFilter}|${tripFilter}|${visitTypeFilter}|${customerFilter}|${debouncedSearch}|${filterUserId}|${pageSize}`;
   const filterKeyRef = useRef(filterKey);
+
+  useEffect(() => {
+    const u = localStorage.getItem("user");
+    if (u) {
+      const parsed = JSON.parse(u);
+      const isAdmin = parsed.role === "admin";
+      const perm = (parsed.permissions ?? []).find((p: any) => p.menu === "visits");
+      setCanEdit(isAdmin || (perm?.canEdit ?? false));
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -403,6 +418,7 @@ export default function VisitsPage() {
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ภารกิจ</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">ยอดออเดอร์</th>
               <th className="text-left px-5 py-3.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">ผลตอบรับ</th>
+              {canEdit && <th className="px-3 py-3.5" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -468,6 +484,30 @@ export default function VisitsPage() {
                     {v.result === "buy" && v.orderAmount != null ? `฿${v.orderAmount.toLocaleString("th-TH")}` : "-"}
                   </td>
                   <td className="px-5 py-4"><ResultBadge result={v.result} /></td>
+                  {canEdit && (
+                    <td className="px-3 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => { setEditingVisit(v); setEditFields({ shopName: v.shopName, result: v.result ?? "", orderAmount: v.orderAmount != null ? String(v.orderAmount) : "", details: v.details ?? "" }); }}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                          title="แก้ไข"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setDeletingVisit(v)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="ลบ"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
           </tbody>
@@ -579,6 +619,130 @@ export default function VisitsPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Visit Modal */}
+      {editingVisit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => !saving && setEditingVisit(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-gray-900 mb-4">แก้ไขข้อมูลการออกทริป</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">ชื่อร้านค้า</label>
+                <input
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                  value={editFields.shopName}
+                  onChange={(e) => setEditFields(f => ({ ...f, shopName: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">ผลตอบรับ</label>
+                <select
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                  value={editFields.result}
+                  onChange={(e) => setEditFields(f => ({ ...f, result: e.target.value }))}
+                >
+                  <option value="">-- ไม่ระบุ --</option>
+                  <option value="buy">สั่งซื้อ</option>
+                  <option value="no_buy">ไม่สั่งซื้อ</option>
+                  <option value="not_found">ไม่พบลูกค้า</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">ยอดออเดอร์ (บาท)</label>
+                <input
+                  type="number"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                  value={editFields.orderAmount}
+                  onChange={(e) => setEditFields(f => ({ ...f, orderAmount: e.target.value }))}
+                  placeholder="ว่างไว้ถ้าไม่มี"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">รายละเอียด</label>
+                <textarea
+                  rows={3}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
+                  value={editFields.details}
+                  onChange={(e) => setEditFields(f => ({ ...f, details: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button
+                className="flex-1 px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                onClick={() => setEditingVisit(null)}
+                disabled={saving}
+              >ยกเลิก</button>
+              <button
+                className="flex-1 px-4 py-2 rounded-xl text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-colors disabled:opacity-60"
+                disabled={saving}
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    await api.updateVisit(editingVisit.id, {
+                      shopName: editFields.shopName || undefined,
+                      result: editFields.result || undefined,
+                      orderAmount: editFields.orderAmount !== "" ? Number(editFields.orderAmount) : null,
+                      details: editFields.details || undefined,
+                    });
+                    toast("บันทึกเรียบร้อย", "success");
+                    setEditingVisit(null);
+                    setPageData(prev => ({
+                      ...prev,
+                      data: prev.data.map(r => r.id === editingVisit.id ? {
+                        ...r,
+                        shopName: editFields.shopName || r.shopName,
+                        result: editFields.result || r.result,
+                        orderAmount: editFields.orderAmount !== "" ? Number(editFields.orderAmount) : null,
+                        details: editFields.details || r.details,
+                      } : r)
+                    }));
+                  } catch (e: any) {
+                    toast(e.message ?? "บันทึกไม่สำเร็จ", "error");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >{saving ? "กำลังบันทึก..." : "บันทึก"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Dialog */}
+      {deletingVisit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => !saving && setDeletingVisit(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-gray-900 mb-2">ยืนยันการลบ</h3>
+            <p className="text-sm text-gray-500 mb-1">ต้องการลบการออกทริปนี้ใช่ไหม?</p>
+            <p className="text-sm font-medium text-gray-700 mb-5">"{deletingVisit.shopName}"</p>
+            <div className="flex gap-2">
+              <button
+                className="flex-1 px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                onClick={() => setDeletingVisit(null)}
+                disabled={saving}
+              >ยกเลิก</button>
+              <button
+                className="flex-1 px-4 py-2 rounded-xl text-sm font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-60"
+                disabled={saving}
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    await api.deleteVisit(deletingVisit.id);
+                    toast("ลบเรียบร้อย", "success");
+                    setDeletingVisit(null);
+                    setPageData(prev => ({ ...prev, data: prev.data.filter(r => r.id !== deletingVisit.id), total: prev.total - 1 }));
+                  } catch (e: any) {
+                    toast(e.message ?? "ลบไม่สำเร็จ", "error");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >{saving ? "กำลังลบ..." : "ลบ"}</button>
             </div>
           </div>
         </div>

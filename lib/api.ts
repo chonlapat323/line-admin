@@ -70,6 +70,12 @@ export const api = {
   approveVisit: (id: string, action: 'approve' | 'reject', amount?: number) =>
     request(`/visits/${id}/approve`, { method: "PATCH", body: JSON.stringify({ action, amount }) }),
 
+  deleteVisit: (id: string) =>
+    request(`/visits/${id}`, { method: "DELETE" }),
+
+  updateVisit: (id: string, data: { shopName?: string; result?: string; orderAmount?: number | null; details?: string }) =>
+    request(`/visits/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
   getSlipSubmissions: (params: {
     status?: string; search?: string; dateFrom?: string; dateTo?: string; page?: number; limit?: number;
     filterUserId?: string;
