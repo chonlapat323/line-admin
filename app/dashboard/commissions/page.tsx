@@ -1284,11 +1284,8 @@ export default function CommissionsPage() {
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
               <p className="text-xs text-gray-400 mb-1">ยอดรวมที่ต้องจ่าย</p>
-              <p className="text-xl font-bold text-amber-600">฿{grandTotalToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
-              <p className="text-xs text-gray-400 mt-1">ค่าคอม ฿{totalToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
-              {totalProxyToPayAll > 0 && (
-                <p className="text-xs text-blue-500">เก็บแทน ฿{totalProxyToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
-              )}
+              <p className="text-xl font-bold text-amber-600">฿{totalToPayAll.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-gray-400 mt-1">เฉพาะค่าคอมปกติ</p>
             </div>
             <div className="bg-green-50 rounded-2xl border border-green-100 shadow-sm p-4">
               <p className="text-xs text-green-600 mb-1">จ่ายไปแล้ว</p>
