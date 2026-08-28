@@ -1301,7 +1301,7 @@ export default function CommissionsPage() {
               <div className="bg-blue-50 rounded-2xl border border-blue-100 shadow-sm p-4">
                 <p className="text-xs text-blue-500 mb-1">อัตราค่าคอมเก็บแทน</p>
                 <p className="text-2xl font-bold text-blue-700">{proxyRate}%</p>
-                <p className="text-xs text-blue-400 mt-1">คำนวณจากสลิปที่ isProxy = true</p>
+                <p className="text-xs text-blue-400 mt-1">คำนวณจากสลิปที่เซลเก็บเงินแทน</p>
               </div>
               <div className="bg-blue-50 rounded-2xl border border-blue-100 shadow-sm p-4">
                 <p className="text-xs text-blue-500 mb-1">ยอดรวมค่าคอมเก็บแทนที่ต้องจ่าย</p>
