@@ -483,7 +483,7 @@ export default function BreakdownPage() {
             )}
 
             <div>
-              <p className="text-xs text-gray-500">= ยอดรวมสลิปทั้งหมด</p>
+              <p className="text-xs text-yellow-600 font-semibold">= ยอดรวมสลิปทั้งหมด</p>
               <p className="text-2xl font-bold text-yellow-600 tabular-nums">
                 ฿{(totalForComm + totalProxySlip).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
               </p>
@@ -522,8 +522,8 @@ export default function BreakdownPage() {
 
             {(tiers.length > 0 || flatRate > 0) && (totalForComm > 0 || totalProxySlip > 0) && (
               <div className="pt-2 border-t border-pink-200">
-                <p className="text-xs text-gray-500">รวมค่าคอม (บาท)</p>
-                <p className="text-xl font-bold text-red-600 tabular-nums">
+                <p className="text-sm text-red-600 font-semibold">รวมค่าคอม (บาท)</p>
+                <p className="text-2xl font-bold text-red-600 tabular-nums">
                   ฿{grandTotal.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                 </p>
               </div>
