@@ -20,6 +20,25 @@ interface BankAccount {
   createdAt: string;
 }
 
+const THAI_BANKS = [
+  { id: "002", name: "ธนาคารกรุงเทพ (Bangkok Bank)" },
+  { id: "004", name: "ธนาคารกสิกรไทย (KBank)" },
+  { id: "006", name: "ธนาคารกรุงไทย (Krungthai)" },
+  { id: "011", name: "ธนาคารทหารไทยธนชาต (TTB)" },
+  { id: "014", name: "ธนาคารไทยพาณิชย์ (SCB)" },
+  { id: "022", name: "ธนาคาร CIMB ไทย" },
+  { id: "024", name: "ธนาคารยูโอบี (UOB)" },
+  { id: "025", name: "ธนาคารกรุงศรีอยุธยา (Krungsri)" },
+  { id: "030", name: "ธนาคารออมสิน (GSB)" },
+  { id: "031", name: "ธนาคารอาคารสงเคราะห์ (GHB)" },
+  { id: "034", name: "ธ.ก.ส. (BAAC)" },
+  { id: "052", name: "ธนาคารแลนด์ แอนด์ เฮ้าส์ (LH Bank)" },
+  { id: "065", name: "ธนาคารทิสโก้ (TISCO)" },
+  { id: "066", name: "ธนาคารเกียรตินาคินภัทร (KKP)" },
+  { id: "067", name: "ธนาคาร ICBC (ไทย)" },
+  { id: "069", name: "ธนาคารไทยเครดิต" },
+];
+
 const EMPTY_FORM = { label: "", bankId: "", bankName: "", accountNumber: "" };
 
 function AccountModal({ account, onClose, onDone }: {
@@ -63,19 +82,21 @@ function AccountModal({ account, onClose, onDone }: {
               placeholder="เช่น กสิกร บัญชีหลัก"
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Bank ID</label>
-              <input value={form.bankId} onChange={(e) => set("bankId", e.target.value)}
-                placeholder="เช่น 004"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">ชื่อธนาคาร</label>
-              <input value={form.bankName} onChange={(e) => set("bankName", e.target.value)}
-                placeholder="เช่น ธนาคารกสิกรไทย"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">ธนาคาร</label>
+            <select
+              value={form.bankId}
+              onChange={(e) => {
+                const bank = THAI_BANKS.find((b) => b.id === e.target.value);
+                setForm((f) => ({ ...f, bankId: e.target.value, bankName: bank?.name ?? "" }));
+                setError("");
+              }}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none bg-white">
+              <option value="">— เลือกธนาคาร —</option>
+              {THAI_BANKS.map((b) => (
+                <option key={b.id} value={b.id}>{b.id} · {b.name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">เลขบัญชี (เต็ม)</label>
@@ -220,7 +241,6 @@ export default function BankAccountsPage() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ป้ายกำกับ</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Bank ID</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">เลขบัญชี</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">สถานะ</th>
@@ -231,8 +251,10 @@ export default function BankAccountsPage() {
                   {accounts.map((acc) => (
                     <tr key={acc.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                       <td className="px-4 py-3 font-semibold text-gray-800">{acc.label}</td>
-                      <td className="px-4 py-3 font-mono text-gray-600">{acc.bankId}</td>
-                      <td className="px-4 py-3 text-gray-700">{acc.bankName}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        <span className="font-mono text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded mr-1.5">{acc.bankId}</span>
+                        {acc.bankName}
+                      </td>
                       <td className="px-4 py-3 font-mono text-gray-600">{acc.accountNumber}</td>
                       <td className="px-4 py-3">
                         <button onClick={() => handleToggle(acc)} disabled={togglingId === acc.id}
