@@ -29,6 +29,7 @@ const navItems = [
   { href: "/dashboard/users", label: "จัดการ Users", icon: "👥", menu: "users" },
   { href: "/dashboard/roles", label: "จัดการสิทธิ์", icon: "🔐", menu: "roles" },
   { href: "/dashboard/settings", label: "ตั้งค่า", icon: "⚙️", menu: "settings" },
+  { href: "/dashboard/bank-accounts", label: "บัญชีธนาคาร", icon: "🏦", menu: "settings" },
 ];
 
 function canViewMenu(user: StoredUser | null, menu: string): boolean {

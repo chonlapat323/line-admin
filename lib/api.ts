@@ -78,7 +78,7 @@ export const api = {
 
   getSlipSubmissions: (params: {
     status?: string; search?: string; dateFrom?: string; dateTo?: string; page?: number; limit?: number;
-    filterUserId?: string;
+    filterUserId?: string; blocked?: string;
   } = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });
@@ -86,6 +86,24 @@ export const api = {
   },
   approveSlip: (id: string, action: 'approve' | 'reject', amount?: number) =>
     request(`/slips/${id}/approve`, { method: "PATCH", body: JSON.stringify({ action, amount }) }),
+  unblockSlip: (id: string) =>
+    request(`/slips/${id}/unblock`, { method: "PATCH" }),
+  updateSlip: (id: string, data: { shopName?: string; amount?: number | null; details?: string; slipStatus?: string; isProxy?: boolean }) =>
+    request(`/slips/${id}`, { method: "PATCH", body: JSON.stringify({
+      ...data,
+      amount: data.amount === null ? "" : data.amount?.toString(),
+      isProxy: data.isProxy?.toString(),
+    }) }),
+  adminCreateSlip: (formData: FormData) =>
+    request("/slips/admin-create", { method: "POST", body: formData, headers: {} }),
+
+  getBankAccounts: () => request("/bank-accounts"),
+  createBankAccount: (data: { label: string; bankId: string; bankName: string; accountNumber: string }) =>
+    request("/bank-accounts", { method: "POST", body: JSON.stringify(data) }),
+  updateBankAccount: (id: string, data: { label?: string; bankId?: string; bankName?: string; accountNumber?: string; isActive?: boolean }) =>
+    request(`/bank-accounts/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteBankAccount: (id: string) =>
+    request(`/bank-accounts/${id}`, { method: "DELETE" }),
 
   getSlipSettings: () => request("/settings/slip"),
   updateSlipSettings: (data: { provider?: string; slip2goSecret?: string; easyslipSecret?: string }) =>

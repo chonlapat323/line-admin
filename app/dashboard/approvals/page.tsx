@@ -1,6 +1,5 @@
 "use client";
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 
 interface SlipSubmission {
@@ -12,6 +11,10 @@ interface SlipSubmission {
   slipStatus: string;
   transRef?: string | null;
   lineStatus?: string | null;
+  isProxy?: boolean;
+  isReceiverBlocked?: boolean;
+  receiverBankId?: string | null;
+  receiverAccountMasked?: string | null;
   createdAt: string;
   user?: { fullName: string; email: string };
 }
@@ -21,6 +24,7 @@ const STATUS_LABEL: Record<string, string> = {
   verified: "ยืนยัน QR",
   approved: "อนุมัติแล้ว",
   rejected: "ปฏิเสธ",
+  blocked: "บัญชีไม่ตรง",
 };
 
 const STATUS_CLASS: Record<string, string> = {
@@ -28,6 +32,7 @@ const STATUS_CLASS: Record<string, string> = {
   verified: "bg-blue-50 text-blue-700 border-blue-200",
   approved: "bg-green-50 text-green-700 border-green-200",
   rejected: "bg-red-50 text-red-600 border-red-200",
+  blocked: "bg-red-100 text-red-700 border-red-300",
 };
 
 function SlipThumb({ url }: { url: string }) {
@@ -105,10 +110,236 @@ function ApproveModal({ slip, onClose, onDone }: {
   );
 }
 
+function EditSlipModal({ slip, onClose, onDone }: {
+  slip: SlipSubmission; onClose: () => void; onDone: () => void;
+}) {
+  const [shopName, setShopName] = useState(slip.shopName);
+  const [amount, setAmount] = useState(slip.amount != null ? String(slip.amount) : "");
+  const [details, setDetails] = useState(slip.details ?? "");
+  const [slipStatus, setSlipStatus] = useState(slip.slipStatus);
+  const [isProxy, setIsProxy] = useState(slip.isProxy ?? false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSave() {
+    if (!shopName.trim()) { setError("กรุณากรอกชื่อร้าน"); return; }
+    setLoading(true);
+    try {
+      await api.updateSlip(slip.id, {
+        shopName: shopName.trim(),
+        amount: amount !== "" ? parseFloat(amount) : null,
+        details: details.trim() || undefined,
+        slipStatus,
+        isProxy,
+      });
+      onDone();
+    } catch (e: any) { setError(e?.message ?? "เกิดข้อผิดพลาด"); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h3 className="font-bold text-gray-800 text-base">แก้ไขสลิป</h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              สร้างโดย: <span className="font-semibold text-gray-600">{slip.user?.fullName || "—"}</span>
+              {slip.user?.email && <span className="ml-1 text-gray-400">({slip.user.email})</span>}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        </div>
+
+        {/* Slip preview */}
+        <div className="flex justify-center mb-5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={slip.slipUrl} alt="slip" className="max-h-36 rounded-xl border border-gray-100 object-contain" />
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">ชื่อร้าน</label>
+            <input value={shopName} onChange={(e) => setShopName(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">ยอดเงิน (บาท)</label>
+            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+              placeholder="— ไม่ระบุ —" min="0" step="0.01"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">รายละเอียด</label>
+            <textarea value={details} onChange={(e) => setDetails(e.target.value)} rows={2}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">สถานะ</label>
+            <select value={slipStatus} onChange={(e) => setSlipStatus(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none">
+              <option value="pending_approval">รออนุมัติ</option>
+              <option value="verified">ยืนยัน QR</option>
+              <option value="approved">อนุมัติแล้ว</option>
+              <option value="rejected">ปฏิเสธ</option>
+              <option value="blocked">บัญชีไม่ตรง</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={isProxy} onChange={(e) => setIsProxy(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-400" />
+            <span className="text-sm text-gray-600">เก็บแทน (proxy)</span>
+          </label>
+        </div>
+
+        {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
+
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">
+            ยกเลิก
+          </button>
+          <button onClick={handleSave} disabled={loading}
+            className="flex-1 py-2.5 text-sm bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl disabled:opacity-60">
+            {loading ? "กำลังบันทึก..." : "บันทึก"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateSlipModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [users, setUsers] = useState<{ id: string; fullName: string; email: string }[]>([]);
+  const [userId, setUserId] = useState("");
+  const [shopName, setShopName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [details, setDetails] = useState("");
+  const [slipStatus, setSlipStatus] = useState("approved");
+  const [isProxy, setIsProxy] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.getUsers().then((res) => setUsers(Array.isArray(res) ? res : res?.data ?? [])).catch(() => {});
+  }, []);
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = () => setPreview(reader.result as string);
+    reader.readAsDataURL(f);
+  }
+
+  async function handleCreate() {
+    if (!userId) { setError("กรุณาเลือกเซล"); return; }
+    if (!shopName.trim()) { setError("กรุณากรอกชื่อร้าน"); return; }
+    if (!file) { setError("กรุณาเลือกรูปสลิป"); return; }
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("slip", file);
+      fd.append("userId", userId);
+      fd.append("shopName", shopName.trim());
+      if (amount) fd.append("amount", amount);
+      if (details.trim()) fd.append("details", details.trim());
+      fd.append("slipStatus", slipStatus);
+      fd.append("isProxy", String(isProxy));
+      await api.adminCreateSlip(fd);
+      onDone();
+    } catch (e: any) { setError(e?.message ?? "เกิดข้อผิดพลาด"); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-bold text-gray-800 text-base">เพิ่มสลิปใหม่ (Admin)</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">เซล (ผู้ส่งสลิป)</label>
+            <select value={userId} onChange={(e) => setUserId(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none">
+              <option value="">— เลือกเซล —</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.fullName} ({u.email})</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">ชื่อร้าน</label>
+            <input value={shopName} onChange={(e) => setShopName(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none"
+              placeholder="ชื่อร้านค้า" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">ยอดเงิน (บาท)</label>
+            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00" min="0" step="0.01"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">รายละเอียด</label>
+            <textarea value={details} onChange={(e) => setDetails(e.target.value)} rows={2}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">สถานะ</label>
+            <select value={slipStatus} onChange={(e) => setSlipStatus(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none">
+              <option value="approved">อนุมัติแล้ว</option>
+              <option value="pending_approval">รออนุมัติ</option>
+              <option value="verified">ยืนยัน QR</option>
+              <option value="rejected">ปฏิเสธ</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={isProxy} onChange={(e) => setIsProxy(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-400" />
+            <span className="text-sm text-gray-600">เก็บแทน (proxy)</span>
+          </label>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">รูปสลิป</label>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+            <button type="button" onClick={() => fileRef.current?.click()}
+              className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-green-400 hover:text-green-600 transition-colors">
+              {preview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={preview} alt="preview" className="max-h-32 mx-auto rounded-lg object-contain" />
+              ) : (
+                <span>คลิกเพื่อเลือกรูปสลิป</span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
+
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">
+            ยกเลิก
+          </button>
+          <button onClick={handleCreate} disabled={loading}
+            className="flex-1 py-2.5 text-sm bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl disabled:opacity-60">
+            {loading ? "กำลังบันทึก..." : "เพิ่มสลิป"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const PAGE_SIZE = 20;
 
 export default function ApprovalsPage() {
-  const searchParams = useSearchParams();
   const [slips, setSlips] = useState<SlipSubmission[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -120,7 +351,10 @@ export default function ApprovalsPage() {
   const [statusFilter, setStatusFilter] = useState("");
 
   const [approvingSlip, setApprovingSlip] = useState<SlipSubmission | null>(null);
+  const [editingSlip, setEditingSlip] = useState<SlipSubmission | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [unblockingId, setUnblockingId] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(false);
 
   useEffect(() => {
@@ -170,6 +404,16 @@ export default function ApprovalsPage() {
     finally { setRejectingId(null); }
   }
 
+  async function handleUnblock(id: string) {
+    if (!confirm("ปลดบล็อกสลิปนี้และส่งรออนุมัติใช่ไหม?")) return;
+    setUnblockingId(id);
+    try {
+      await api.unblockSlip(id);
+      load(page);
+    } catch { alert("เกิดข้อผิดพลาด"); }
+    finally { setUnblockingId(null); }
+  }
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -184,6 +428,15 @@ export default function ApprovalsPage() {
             )}
           </p>
         </div>
+        {canEdit && (
+          <button onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            เพิ่มสลิปใหม่
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -191,6 +444,7 @@ export default function ApprovalsPage() {
         <div className="flex gap-2 flex-wrap items-center">
           {[
             { value: "pending_approval", label: "รออนุมัติ" },
+            { value: "blocked", label: "บัญชีไม่ตรง" },
             { value: "verified", label: "ยืนยัน QR" },
             { value: "approved", label: "อนุมัติแล้ว" },
             { value: "rejected", label: "ปฏิเสธ" },
@@ -248,7 +502,7 @@ export default function ApprovalsPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-8">#</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-12">สลิป</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ร้านค้า</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">เซล</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">สร้างโดย</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ยอด (บาท)</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">LINE</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">วันที่</th>
@@ -270,9 +524,10 @@ export default function ApprovalsPage() {
               )}
               {!loading && slips.map((s, i) => {
                 const isPending = s.slipStatus === "pending_approval";
+                const isBlocked = s.slipStatus === "blocked";
                 const statusKey = s.slipStatus ?? "";
                 return (
-                  <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  <tr key={s.id} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${isBlocked ? "bg-red-50/30" : ""}`}>
                     <td className="px-4 py-3 text-xs text-gray-400">{(page - 1) * PAGE_SIZE + i + 1}</td>
                     <td className="px-4 py-3">
                       <SlipThumb url={s.slipUrl} />
@@ -281,9 +536,17 @@ export default function ApprovalsPage() {
                       <p className="font-semibold text-gray-800 text-sm">{s.shopName}</p>
                       {s.transRef && <p className="text-xs text-gray-400 font-mono mt-0.5">Ref: {s.transRef}</p>}
                       {s.details && <p className="text-xs text-gray-400 mt-0.5 max-w-[200px] truncate">{s.details}</p>}
+                      {s.isProxy && (
+                        <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-blue-50 text-blue-600 border border-blue-100 rounded-full font-medium">เก็บแทน</span>
+                      )}
+                      {s.isReceiverBlocked && s.receiverAccountMasked && (
+                        <p className="text-xs text-red-500 font-mono mt-0.5">
+                          ผู้รับ: {s.receiverBankId} · {s.receiverAccountMasked}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-sm text-gray-700">{s.user?.fullName || "—"}</p>
+                      <p className="text-sm font-semibold text-gray-700">{s.user?.fullName || "—"}</p>
                       <p className="text-xs text-gray-400">{s.user?.email || ""}</p>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -314,18 +577,32 @@ export default function ApprovalsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {isPending && canEdit && (
-                        <div className="flex gap-1.5">
-                          <button onClick={() => setApprovingSlip(s)}
-                            className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors whitespace-nowrap">
-                            อนุมัติ
+                      <div className="flex flex-col gap-1.5">
+                        {isPending && canEdit && (
+                          <div className="flex gap-1.5">
+                            <button onClick={() => setApprovingSlip(s)}
+                              className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors whitespace-nowrap">
+                              อนุมัติ
+                            </button>
+                            <button onClick={() => handleReject(s.id)} disabled={rejectingId === s.id}
+                              className="px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 whitespace-nowrap">
+                              {rejectingId === s.id ? "..." : "ปฏิเสธ"}
+                            </button>
+                          </div>
+                        )}
+                        {isBlocked && canEdit && (
+                          <button onClick={() => handleUnblock(s.id)} disabled={unblockingId === s.id}
+                            className="px-3 py-1.5 text-xs font-semibold border border-amber-300 text-amber-700 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-40 whitespace-nowrap">
+                            {unblockingId === s.id ? "..." : "ปลดบล็อก"}
                           </button>
-                          <button onClick={() => handleReject(s.id)} disabled={rejectingId === s.id}
-                            className="px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 whitespace-nowrap">
-                            {rejectingId === s.id ? "..." : "ปฏิเสธ"}
+                        )}
+                        {canEdit && (
+                          <button onClick={() => setEditingSlip(s)}
+                            className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors whitespace-nowrap">
+                            แก้ไข
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -359,6 +636,19 @@ export default function ApprovalsPage() {
           slip={approvingSlip}
           onClose={() => setApprovingSlip(null)}
           onDone={() => { setApprovingSlip(null); load(page); }}
+        />
+      )}
+      {editingSlip && (
+        <EditSlipModal
+          slip={editingSlip}
+          onClose={() => setEditingSlip(null)}
+          onDone={() => { setEditingSlip(null); load(page); }}
+        />
+      )}
+      {showCreate && (
+        <CreateSlipModal
+          onClose={() => setShowCreate(false)}
+          onDone={() => { setShowCreate(false); load(1); setPage(1); }}
         />
       )}
     </div>
