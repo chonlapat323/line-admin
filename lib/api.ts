@@ -101,6 +101,11 @@ export const api = {
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });
     return request(`/slips/audit-logs?${qs}`);
   },
+  getSlipDuplicateLogs: (params: { page?: number; limit?: number; dateFrom?: string; dateTo?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });
+    return request(`/slips/duplicate-logs?${qs}`);
+  },
 
   getBankAccounts: () => request("/bank-accounts"),
   createBankAccount: (data: { label: string; bankId: string; bankName: string; accountNumber: string }) =>
