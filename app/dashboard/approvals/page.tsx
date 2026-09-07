@@ -2,6 +2,61 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 
+interface AuditLog {
+  id: string;
+  slipId: string;
+  action: string;
+  changedBy: string;
+  before: any;
+  after: any;
+  note?: string | null;
+  createdAt: string;
+  changer?: { fullName: string; email: string };
+  slip?: { id: string; shopName: string; slipUrl: string; user?: { fullName: string } } | null;
+}
+
+const ACTION_LABEL: Record<string, string> = {
+  submit:       "ส่งสลิป",
+  admin_create: "แอดมินสร้าง",
+  edit:         "แก้ไข",
+  approve:      "อนุมัติ",
+  reject:       "ปฏิเสธ",
+  unblock:      "ปลดบล็อก",
+};
+const ACTION_CLASS: Record<string, string> = {
+  submit:       "bg-blue-50 text-blue-700 border-blue-200",
+  admin_create: "bg-purple-50 text-purple-700 border-purple-200",
+  edit:         "bg-amber-50 text-amber-700 border-amber-200",
+  approve:      "bg-green-50 text-green-700 border-green-200",
+  reject:       "bg-red-50 text-red-600 border-red-200",
+  unblock:      "bg-orange-50 text-orange-700 border-orange-200",
+};
+const FIELD_LABEL: Record<string, string> = {
+  shopName: "ชื่อร้าน", amount: "ยอด", details: "รายละเอียด", slipStatus: "สถานะ", isProxy: "เก็บแทน",
+};
+
+function AuditDiff({ before, after }: { before: any; after: any }) {
+  if (!before && !after) return null;
+  const changed = Object.keys({ ...before, ...after }).filter(
+    (k) => (before?.[k] ?? null) !== (after?.[k] ?? null) && after?.[k] !== undefined,
+  );
+  if (!changed.length) return null;
+  return (
+    <div className="mt-1 space-y-0.5">
+      {changed.map((k) => (
+        <div key={k} className="text-xs text-gray-500 flex items-center gap-1 flex-wrap">
+          <span className="text-gray-400">{FIELD_LABEL[k] ?? k}:</span>
+          {before?.[k] !== undefined && (
+            <span className="line-through text-red-400">{String(before[k] ?? "—")}</span>
+          )}
+          <span className="text-gray-300">→</span>
+          <span className="text-green-600 font-medium">{String(after?.[k] ?? "—")}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 interface SlipSubmission {
   id: string;
   shopName: string;
@@ -338,8 +393,12 @@ function CreateSlipModal({ onClose, onDone }: { onClose: () => void; onDone: () 
 }
 
 const PAGE_SIZE = 20;
+const AUDIT_PAGE_SIZE = 30;
 
 export default function ApprovalsPage() {
+  const [activeTab, setActiveTab] = useState<"slips" | "audit">("slips");
+
+  // Slips tab
   const [slips, setSlips] = useState<SlipSubmission[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -356,6 +415,15 @@ export default function ApprovalsPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(false);
+
+  // Audit tab
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditActionFilter, setAuditActionFilter] = useState("");
+  const [auditDateFrom, setAuditDateFrom] = useState("");
+  const [auditDateTo, setAuditDateTo] = useState("");
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -395,6 +463,27 @@ export default function ApprovalsPage() {
 
   useEffect(() => { load(page); }, [page]);
 
+  const loadAudit = useCallback((p = 1) => {
+    setAuditLoading(true);
+    api.getSlipAuditLogs({
+      page: p, limit: AUDIT_PAGE_SIZE,
+      action: auditActionFilter || undefined,
+      dateFrom: auditDateFrom || undefined,
+      dateTo: auditDateTo || undefined,
+    })
+      .then((res) => { setAuditLogs(res?.data ?? []); setAuditTotal(res?.total ?? 0); })
+      .catch(console.error)
+      .finally(() => setAuditLoading(false));
+  }, [auditActionFilter, auditDateFrom, auditDateTo]);
+
+  useEffect(() => {
+    if (activeTab === "audit") { setAuditPage(1); loadAudit(1); }
+  }, [activeTab, auditActionFilter, auditDateFrom, auditDateTo]);
+
+  useEffect(() => {
+    if (activeTab === "audit") loadAudit(auditPage);
+  }, [auditPage]);
+
   async function handleReject(id: string) {
     setRejectingId(id);
     try {
@@ -416,19 +505,23 @@ export default function ApprovalsPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  const auditTotalPages = Math.ceil(auditTotal / AUDIT_PAGE_SIZE);
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-800">จัดการสลิปการชำระเงิน</h2>
           <p className="text-sm text-gray-400 mt-0.5">
-            {loading ? "กำลังโหลด..." : `${total} รายการ`}
-            {statusFilter === "pending_approval" && total > 0 && (
+            {activeTab === "slips"
+              ? (loading ? "กำลังโหลด..." : `${total} รายการ`)
+              : (auditLoading ? "กำลังโหลด..." : `${auditTotal} รายการ`)}
+            {activeTab === "slips" && statusFilter === "pending_approval" && total > 0 && (
               <span className="ml-2 text-amber-600 font-semibold">· รออนุมัติ {total} รายการ</span>
             )}
           </p>
         </div>
-        {canEdit && (
+        {canEdit && activeTab === "slips" && (
           <button onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -439,6 +532,20 @@ export default function ApprovalsPage() {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        {([{ key: "slips", label: "รายการสลิป" }, { key: "audit", label: "ประวัติแก้ไข" }] as const).map((t) => (
+          <button key={t.key} onClick={() => setActiveTab(t.key)}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+              activeTab === t.key ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            }`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Slips tab content */}
+      {activeTab === "slips" && <>
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2.5">
         <div className="flex gap-2 flex-wrap items-center">
@@ -630,6 +737,141 @@ export default function ApprovalsPage() {
           </div>
         )}
       </div>
+
+      </>}
+
+      {/* Audit log tab */}
+      {activeTab === "audit" && (
+        <div className="space-y-4">
+          {/* Audit filters */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2.5">
+            <div className="flex gap-2 flex-wrap items-center">
+              {[
+                { value: "", label: "ทั้งหมด" },
+                { value: "submit", label: "ส่งสลิป" },
+                { value: "admin_create", label: "แอดมินสร้าง" },
+                { value: "edit", label: "แก้ไข" },
+                { value: "approve", label: "อนุมัติ" },
+                { value: "reject", label: "ปฏิเสธ" },
+                { value: "unblock", label: "ปลดบล็อก" },
+              ].map((opt) => (
+                <button key={opt.value} onClick={() => setAuditActionFilter(opt.value)}
+                  className={`px-3.5 py-1.5 text-sm rounded-xl font-medium transition-colors ${
+                    auditActionFilter === opt.value
+                      ? "bg-green-500 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="border-t border-gray-100" />
+            <div className="flex gap-2 items-center flex-wrap">
+              <input type="date" value={auditDateFrom} onChange={(e) => setAuditDateFrom(e.target.value)}
+                className={`text-sm rounded-xl px-3 py-1.5 border-0 focus:outline-none focus:ring-2 focus:ring-green-400 font-medium transition-colors ${auditDateFrom ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600"}`} />
+              <span className="text-gray-400 text-sm">—</span>
+              <input type="date" value={auditDateTo} onChange={(e) => setAuditDateTo(e.target.value)}
+                className={`text-sm rounded-xl px-3 py-1.5 border-0 focus:outline-none focus:ring-2 focus:ring-green-400 font-medium transition-colors ${auditDateTo ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600"}`} />
+              {(auditDateFrom || auditDateTo) && (
+                <button onClick={() => { setAuditDateFrom(""); setAuditDateTo(""); }}
+                  className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 rounded-xl hover:bg-gray-100">
+                  ล้าง
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Audit table */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-8">#</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">สลิป</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">การกระทำ</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ดำเนินการโดย</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">รายละเอียด</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">วันที่/เวลา</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLoading && (
+                    <tr><td colSpan={6} className="text-center py-12 text-gray-400 text-sm">กำลังโหลด...</td></tr>
+                  )}
+                  {!auditLoading && auditLogs.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-16">
+                        <p className="text-2xl mb-2">📋</p>
+                        <p className="text-sm font-semibold text-gray-600">ยังไม่มีประวัติการแก้ไข</p>
+                      </td>
+                    </tr>
+                  )}
+                  {!auditLoading && auditLogs.map((log, i) => (
+                    <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-4 py-3 text-xs text-gray-400">{(auditPage - 1) * AUDIT_PAGE_SIZE + i + 1}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {log.slip?.slipUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={log.slip.slipUrl} alt="slip"
+                              className="w-8 h-8 rounded-lg object-cover border border-gray-100 flex-shrink-0" />
+                          )}
+                          <div>
+                            <p className="font-semibold text-gray-800 text-sm">{log.slip?.shopName || log.slipId.slice(0, 8)}</p>
+                            {log.slip?.user?.fullName && (
+                              <p className="text-xs text-gray-400">{log.slip.user.fullName}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${ACTION_CLASS[log.action] ?? "bg-gray-50 text-gray-500 border-gray-200"}`}>
+                          {ACTION_LABEL[log.action] ?? log.action}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm font-semibold text-gray-700">{log.changer?.fullName || "—"}</p>
+                        <p className="text-xs text-gray-400">{log.changer?.email || ""}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <AuditDiff before={log.before} after={log.after} />
+                        {log.note && <p className="text-xs text-gray-400 mt-1">{log.note}</p>}
+                        {!log.before && !log.after && !log.note && (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                        {new Date(log.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+                        <br />
+                        {new Date(log.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {auditTotalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                <p className="text-xs text-gray-400">
+                  แสดง {(auditPage - 1) * AUDIT_PAGE_SIZE + 1}–{Math.min(auditPage * AUDIT_PAGE_SIZE, auditTotal)} จาก {auditTotal} รายการ
+                </p>
+                <div className="flex gap-1.5">
+                  <button onClick={() => setAuditPage((p) => Math.max(1, p - 1))} disabled={auditPage === 1}
+                    className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+                    ← ก่อนหน้า
+                  </button>
+                  <span className="px-3 py-1.5 text-xs text-gray-600 font-semibold">{auditPage} / {auditTotalPages}</span>
+                  <button onClick={() => setAuditPage((p) => Math.min(auditTotalPages, p + 1))} disabled={auditPage === auditTotalPages}
+                    className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+                    ถัดไป →
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {approvingSlip && (
         <ApproveModal
