@@ -10,6 +10,15 @@ interface DuplicateLog {
   user?: { fullName: string; email: string };
 }
 
+interface SlipHashRow {
+  id: string;
+  hash: string;
+  userId: string;
+  createdAt: string;
+  fullName?: string;
+  email?: string;
+}
+
 interface BankAccount {
   id: string;
   label: string;
@@ -122,9 +131,10 @@ function AccountModal({ account, onClose, onDone }: {
 }
 
 const DUP_PAGE_SIZE = 30;
+const HASH_PAGE_SIZE = 30;
 
 export default function BankAccountsPage() {
-  const [activeTab, setActiveTab] = useState<"accounts" | "duplicates">("accounts");
+  const [activeTab, setActiveTab] = useState<"accounts" | "duplicates" | "hashes">("accounts");
 
   // Bank accounts tab
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
@@ -140,6 +150,15 @@ export default function BankAccountsPage() {
   const [dupLoading, setDupLoading] = useState(false);
   const [dupDateFrom, setDupDateFrom] = useState("");
   const [dupDateTo, setDupDateTo] = useState("");
+
+  // Slip hashes tab
+  const [hashRows, setHashRows] = useState<SlipHashRow[]>([]);
+  const [hashTotal, setHashTotal] = useState(0);
+  const [hashPage, setHashPage] = useState(1);
+  const [hashLoading, setHashLoading] = useState(false);
+  const [hashSearch, setHashSearch] = useState("");
+  const [hashDateFrom, setHashDateFrom] = useState("");
+  const [hashDateTo, setHashDateTo] = useState("");
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -167,13 +186,25 @@ export default function BankAccountsPage() {
       .finally(() => setDupLoading(false));
   }, [dupDateFrom, dupDateTo]);
 
+  const loadHashes = useCallback((p = 1) => {
+    setHashLoading(true);
+    api.getSlipHashes({ page: p, limit: HASH_PAGE_SIZE, search: hashSearch || undefined, dateFrom: hashDateFrom || undefined, dateTo: hashDateTo || undefined })
+      .then((res) => { setHashRows(res?.data ?? []); setHashTotal(res?.total ?? 0); })
+      .catch(console.error)
+      .finally(() => setHashLoading(false));
+  }, [hashSearch, hashDateFrom, hashDateTo]);
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (activeTab === "duplicates") { setDupPage(1); loadDup(1); }
-  }, [activeTab, dupDateFrom, dupDateTo]);
+    if (activeTab === "hashes") { setHashPage(1); loadHashes(1); }
+  }, [activeTab, dupDateFrom, dupDateTo, hashSearch, hashDateFrom, hashDateTo]);
   useEffect(() => {
     if (activeTab === "duplicates") loadDup(dupPage);
   }, [dupPage]);
+  useEffect(() => {
+    if (activeTab === "hashes") loadHashes(hashPage);
+  }, [hashPage]);
 
   async function handleDelete(id: string) {
     if (!confirm("ต้องการลบบัญชีนี้ใช่ไหม?")) return;
@@ -191,6 +222,7 @@ export default function BankAccountsPage() {
   }
 
   const dupTotalPages = Math.ceil(dupTotal / DUP_PAGE_SIZE);
+  const hashTotalPages = Math.ceil(hashTotal / HASH_PAGE_SIZE);
 
   return (
     <div className="space-y-5">
@@ -209,12 +241,17 @@ export default function BankAccountsPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-        {([{ key: "accounts", label: "บัญชีธนาคาร" }, { key: "duplicates", label: "ประวัติ slip ซ้ำ" }] as const).map((t) => (
+        {([{ key: "accounts", label: "บัญชีธนาคาร" }, { key: "hashes", label: "สลิปในระบบ" }, { key: "duplicates", label: "ประวัติ slip ซ้ำ" }] as const).map((t) => (
           <button key={t.key} onClick={() => setActiveTab(t.key)}
             className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
               activeTab === t.key ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}>
             {t.label}
+            {t.key === "hashes" && hashTotal > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center px-1.5 h-5 text-xs bg-blue-100 text-blue-600 rounded-full font-bold">
+                {hashTotal.toLocaleString()}
+              </span>
+            )}
             {t.key === "duplicates" && dupTotal > 0 && (
               <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs bg-red-100 text-red-600 rounded-full font-bold">
                 {dupTotal > 99 ? "99+" : dupTotal}
@@ -368,6 +405,96 @@ export default function BankAccountsPage() {
               </button>
               <span className="text-xs text-gray-500">หน้า {dupPage} / {dupTotalPages}</span>
               <button onClick={() => setDupPage((p) => Math.min(dupTotalPages, p + 1))} disabled={dupPage === dupTotalPages}
+                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+                ถัดไป →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Slip hashes tab */}
+      {activeTab === "hashes" && (
+        <div className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3 bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3">
+            <input
+              type="text" value={hashSearch} onChange={(e) => setHashSearch(e.target.value)}
+              placeholder="ค้นหาชื่อ / อีเมล..."
+              className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-300 focus:outline-none w-48" />
+            <span className="text-xs font-semibold text-gray-500">วันที่</span>
+            <div className="flex items-center gap-2">
+              <input type="date" value={hashDateFrom} onChange={(e) => setHashDateFrom(e.target.value)}
+                className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-300 focus:outline-none" />
+              <span className="text-xs text-gray-400">ถึง</span>
+              <input type="date" value={hashDateTo} onChange={(e) => setHashDateTo(e.target.value)}
+                className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-300 focus:outline-none" />
+            </div>
+            {(hashSearch || hashDateFrom || hashDateTo) && (
+              <button onClick={() => { setHashSearch(""); setHashDateFrom(""); setHashDateTo(""); }}
+                className="px-2.5 py-1 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">
+                ล้างตัวกรอง
+              </button>
+            )}
+            <span className="ml-auto text-xs text-gray-400">ทั้งหมด {hashTotal.toLocaleString()} รายการ</span>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            {hashLoading ? (
+              <div className="py-16 text-center text-sm text-gray-400">กำลังโหลด...</div>
+            ) : hashRows.length === 0 ? (
+              <div className="py-16 text-center">
+                <p className="text-sm font-semibold text-gray-600">ไม่พบข้อมูลสลิป</p>
+                <p className="text-xs text-gray-400 mt-1">ระบบบันทึก hash ของทุก slip ที่ผ่านการตรวจสอบ</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-10">#</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ผู้ส่ง</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Hash (SHA256)</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">วันที่บันทึก</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hashRows.map((row, idx) => (
+                      <tr key={row.id} className="border-b border-gray-50 hover:bg-blue-50/20">
+                        <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">
+                          {(hashPage - 1) * HASH_PAGE_SIZE + idx + 1}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-gray-800 text-sm leading-tight">{row.fullName ?? "—"}</div>
+                          <div className="text-xs text-gray-400">{row.email ?? row.userId}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-xs text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded" title={row.hash}>
+                            {row.hash.slice(0, 16)}…{row.hash.slice(-8)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                          {new Date(row.createdAt).toLocaleString("th-TH", {
+                            day: "2-digit", month: "2-digit", year: "numeric",
+                            hour: "2-digit", minute: "2-digit",
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {hashTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              <button onClick={() => setHashPage((p) => Math.max(1, p - 1))} disabled={hashPage === 1}
+                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+                ← ก่อนหน้า
+              </button>
+              <span className="text-xs text-gray-500">หน้า {hashPage} / {hashTotalPages}</span>
+              <button onClick={() => setHashPage((p) => Math.min(hashTotalPages, p + 1))} disabled={hashPage === hashTotalPages}
                 className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40">
                 ถัดไป →
               </button>

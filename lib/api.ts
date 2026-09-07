@@ -101,6 +101,11 @@ export const api = {
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });
     return request(`/slips/audit-logs?${qs}`);
   },
+  getSlipHashes: (params: { page?: number; limit?: number; search?: string; dateFrom?: string; dateTo?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });
+    return request(`/slips/hashes?${qs}`);
+  },
   getSlipDuplicateLogs: (params: { page?: number; limit?: number; dateFrom?: string; dateTo?: string } = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });
