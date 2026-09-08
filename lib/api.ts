@@ -49,6 +49,10 @@ export const api = {
   sendToAll: (formData: FormData) =>
     request("/line/send-all", { method: "POST", body: formData, headers: {} }),
 
+  sendAnnouncement: (data: { title: string; bodyHtml: string; imageUrl?: string; buttonText?: string; buttonUrl?: string }) =>
+    request("/line/announcements", { method: "POST", body: JSON.stringify(data) }),
+  getAnnouncements: () => request("/line/announcements"),
+
   getVisits: (params: {
     page?: number; limit?: number;
     province?: string; result?: string; tripType?: string;
