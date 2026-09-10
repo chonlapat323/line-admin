@@ -30,6 +30,10 @@ export default function SettingsPage() {
   const [commissionSheetId, setCommissionSheetId] = useState("");
   const [sheetLoading, setSheetLoading] = useState(false);
 
+  const [shopContactCount, setShopContactCount] = useState<number | null>(null);
+  const [shopContactSyncedAt, setShopContactSyncedAt] = useState<string | null>(null);
+  const [shopContactSyncing, setShopContactSyncing] = useState(false);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
   useEffect(() => {
@@ -70,6 +74,30 @@ export default function SettingsPage() {
       .catch(() => toast("โหลดการตั้งค่าล้มเหลว", "error"))
       .finally(() => setInitialLoading(false));
   }, [authorized]);
+
+  useEffect(() => {
+    if (!authorized) return;
+    api.getShopContactsStatus()
+      .then((s: { count: number; lastSyncedAt: string | null }) => {
+        setShopContactCount(s.count);
+        setShopContactSyncedAt(s.lastSyncedAt);
+      })
+      .catch(() => {});
+  }, [authorized]);
+
+  async function handleSyncShopContacts() {
+    setShopContactSyncing(true);
+    try {
+      const res = await api.syncShopContacts();
+      setShopContactCount(res.synced);
+      setShopContactSyncedAt(new Date().toISOString());
+      toast(`Sync สำเร็จ — ${res.synced} ร้านค้า`, "success");
+    } catch {
+      toast("Sync ไม่สำเร็จ กรุณาลองใหม่", "error");
+    } finally {
+      setShopContactSyncing(false);
+    }
+  }
 
   async function handleSaveLine(e: React.FormEvent) {
     e.preventDefault();
@@ -457,6 +485,34 @@ export default function SettingsPage() {
             </button>
           )}
         </form>
+      </div>
+      {/* Shop contacts (FlowAccount autocomplete source) */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
+          <span className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-xs">🏪</span>
+          ชื่อร้านค้า (FlowAccount)
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">
+          ดึงรายชื่อร้านค้าจาก FlowAccount มาเก็บไว้ใช้เป็น autocomplete ตอนพนักงานพิมพ์ชื่อร้านในแอปมือถือ
+        </p>
+        <div className="flex items-center justify-between gap-3 bg-gray-50 rounded-xl px-4 py-3">
+          <div className="text-sm text-gray-600">
+            {shopContactCount != null ? (
+              <>
+                <span className="font-semibold text-gray-800">{shopContactCount.toLocaleString()}</span> ร้านค้าใน cache
+                {shopContactSyncedAt && (
+                  <span className="text-gray-400"> · sync ล่าสุด {new Date(shopContactSyncedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</span>
+                )}
+              </>
+            ) : "กำลังโหลด..."}
+          </div>
+          {canEdit && (
+            <button onClick={handleSyncShopContacts} disabled={shopContactSyncing}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-60 whitespace-nowrap">
+              {shopContactSyncing ? "กำลัง Sync..." : "Sync ตอนนี้"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

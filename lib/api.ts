@@ -53,6 +53,9 @@ export const api = {
     request("/line/announcements", { method: "POST", body: JSON.stringify(data) }),
   getAnnouncements: () => request("/line/announcements"),
 
+  syncShopContacts: () => request("/shop-contacts/sync", { method: "POST" }),
+  getShopContactsStatus: () => request("/shop-contacts/status"),
+
   getVisits: (params: {
     page?: number; limit?: number;
     province?: string; result?: string; tripType?: string;
