@@ -55,6 +55,7 @@ export const api = {
 
   syncShopContacts: () => request("/shop-contacts/sync", { method: "POST" }),
   getShopContactsStatus: () => request("/shop-contacts/status"),
+  getShopContacts: () => request("/shop-contacts"),
 
   getVisits: (params: {
     page?: number; limit?: number;

@@ -33,6 +33,10 @@ export default function SettingsPage() {
   const [shopContactCount, setShopContactCount] = useState<number | null>(null);
   const [shopContactSyncedAt, setShopContactSyncedAt] = useState<string | null>(null);
   const [shopContactSyncing, setShopContactSyncing] = useState(false);
+  const [showShopContactsModal, setShowShopContactsModal] = useState(false);
+  const [shopContactRows, setShopContactRows] = useState<{ id: string; contactName: string }[]>([]);
+  const [shopContactsLoading, setShopContactsLoading] = useState(false);
+  const [shopContactSearch, setShopContactSearch] = useState("");
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
@@ -84,6 +88,19 @@ export default function SettingsPage() {
       })
       .catch(() => {});
   }, [authorized]);
+
+  async function openShopContactsModal() {
+    setShowShopContactsModal(true);
+    setShopContactsLoading(true);
+    try {
+      const rows = await api.getShopContacts();
+      setShopContactRows(rows);
+    } catch {
+      toast("โหลดรายชื่อร้านค้าล้มเหลว", "error");
+    } finally {
+      setShopContactsLoading(false);
+    }
+  }
 
   async function handleSyncShopContacts() {
     setShopContactSyncing(true);
@@ -499,7 +516,9 @@ export default function SettingsPage() {
           <div className="text-sm text-gray-600">
             {shopContactCount != null ? (
               <>
-                <span className="font-semibold text-gray-800">{shopContactCount.toLocaleString()}</span> ร้านค้าใน cache
+                <button onClick={openShopContactsModal} className="font-semibold text-blue-600 hover:underline">
+                  {shopContactCount.toLocaleString()}
+                </button>{" "}ร้านค้าใน cache
                 {shopContactSyncedAt && (
                   <span className="text-gray-400"> · sync ล่าสุด {new Date(shopContactSyncedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</span>
                 )}
@@ -514,6 +533,47 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {showShopContactsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="text-sm font-bold text-gray-800">ร้านค้าใน cache ({shopContactRows.length.toLocaleString()})</h3>
+              <button onClick={() => setShowShopContactsModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+            </div>
+            <div className="px-5 py-3 border-b border-gray-100">
+              <input
+                value={shopContactSearch}
+                onChange={(e) => setShopContactSearch(e.target.value)}
+                placeholder="ค้นหาชื่อร้าน..."
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+              />
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {shopContactsLoading ? (
+                <div className="p-6 text-center text-sm text-gray-400">กำลังโหลด...</div>
+              ) : (
+                (() => {
+                  const q = shopContactSearch.trim().toLowerCase();
+                  const filtered = q
+                    ? shopContactRows.filter((r) => r.contactName.toLowerCase().includes(q))
+                    : shopContactRows;
+                  if (filtered.length === 0) {
+                    return <div className="p-6 text-center text-sm text-gray-400">ไม่พบร้านค้า</div>;
+                  }
+                  return (
+                    <div className="divide-y divide-gray-50">
+                      {filtered.map((r) => (
+                        <div key={r.id} className="px-5 py-2.5 text-sm text-gray-700">{r.contactName}</div>
+                      ))}
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
