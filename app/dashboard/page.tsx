@@ -33,9 +33,17 @@ interface UserSummary {
   commission: number;
   user?: { fullName: string };
 }
+interface RangeSlip {
+  userId: string;
+  amount: number | null;
+  debtDeducted: number | null;
+  slipStatus: string;
+  isProxy?: boolean;
+  user?: { fullName: string };
+}
 interface CommissionData {
   month: string;
-  settings: { rate: number; threshold: number; tiers?: any[] };
+  settings: { rate: number; threshold: number; tiers?: { min: number; rate: number }[] };
   summary: UserSummary[];
 }
 
@@ -106,6 +114,27 @@ export default function DashboardPage() {
     const r = getDateRange(period, customFrom, customTo);
     return r ? monthsInRange(r.start, r.end) : [toMonthKey(new Date())];
   }, [period, customFrom, customTo]);
+
+  // ช่วงที่เลือกไม่เต็มเดือน → คิดค่าคอมจากสลิปในช่วงนั้นตรงๆ (เต็มเดือนใช้ผลจาก API ซึ่งรวมยอดช่วย/ปรับรายเดือนด้วย)
+  // "เดือนนี้" นับว่าเต็มเดือน เพราะยังไม่มีสลิปหลังวันนี้
+  const partialRange = useMemo(() => {
+    const r = getDateRange(period, customFrom, customTo);
+    if (!r || period === "month") return null;
+    const endsOnMonthEnd = new Date(r.end.getFullYear(), r.end.getMonth(), r.end.getDate() + 1).getDate() === 1;
+    if (r.start.getDate() === 1 && endsOnMonthEnd) return null;
+    const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { from: ymd(r.start), to: ymd(r.end) };
+  }, [period, customFrom, customTo]);
+  const [rangeSlips, setRangeSlips] = useState<RangeSlip[]>([]);
+
+  useEffect(() => {
+    if (!partialRange) { setRangeSlips([]); return; }
+    let cancelled = false;
+    api.getSlipSubmissions({ dateFrom: partialRange.from, dateTo: partialRange.to, limit: 10000 })
+      .then((res: any) => { if (!cancelled) setRangeSlips(res?.data ?? []); })
+      .catch(console.error);
+    return () => { cancelled = true; };
+  }, [partialRange]);
 
   useEffect(() => {
     // กันผลลัพธ์เก่ามาทับ เมื่อเปลี่ยนช่วงวันที่เร็วๆ
@@ -184,7 +213,32 @@ export default function DashboardPage() {
 
   const recentVisits = filteredVisits.slice(0, 5);
 
-  const commSummary = (commData?.summary ?? []).filter((r) => !userFilter || r.user?.fullName === userFilter);
+  // สรุปค่าคอมจากสลิปในช่วงที่เลือก — สูตรเดียวกับ getCommissionSummary ใน API (ไม่รวมยอดช่วย/ปรับ ซึ่งบันทึกเป็นรายเดือน)
+  const rangeSummary = useMemo<UserSummary[]>(() => {
+    if (!partialRange || !commData) return [];
+    const { rate, threshold, tiers } = commData.settings;
+    const byUser = new Map<string, { user?: { fullName: string }; slipAmount: number; deducted: number; proxy: number }>();
+    for (const sl of rangeSlips) {
+      if (!["verified", "approved"].includes(sl.slipStatus)) continue;
+      const e = byUser.get(sl.userId) ?? { user: sl.user, slipAmount: 0, deducted: 0, proxy: 0 };
+      if (sl.isProxy) e.proxy += sl.amount ?? 0;
+      else { e.slipAmount += sl.amount ?? 0; e.deducted += sl.debtDeducted ?? 0; }
+      byUser.set(sl.userId, e);
+    }
+    return Array.from(byUser.entries()).map(([userId, e]) => {
+      const base = e.slipAmount - e.deducted;
+      const reachedThreshold = threshold === 0 || base + e.proxy >= threshold;
+      let commission = 0;
+      if (reachedThreshold && base > 0) {
+        let r = rate;
+        if (tiers && tiers.length > 0) { let t = tiers[0]; for (const x of tiers) if (base >= x.min) t = x; r = t.rate; }
+        commission = Math.round(base * r) / 100;
+      }
+      return { userId, user: e.user, slipAmount: e.slipAmount, totalAmount: base, reachedThreshold, commission };
+    });
+  }, [partialRange, rangeSlips, commData]);
+
+  const commSummary = (partialRange ? rangeSummary : commData?.summary ?? []).filter((r) => !userFilter || r.user?.fullName === userFilter);
   const commReached = commSummary.filter((r) => r.reachedThreshold);
   const totalCommission = commReached.reduce((s, r) => s + r.commission, 0);
   const commUserCount = new Set(commSummary.map((r) => r.userId)).size;
@@ -193,12 +247,6 @@ export default function DashboardPage() {
   const totalSlipsAmount = commSummary.reduce((s, r) => s + (r.slipAmount ?? r.totalAmount), 0);
 
   const range = getDateRange(period, customFrom, customTo);
-  // ค่าคอมคิดเป็นรายเดือน — ถ้าช่วงที่เลือกไม่เต็มเดือน ต้องบอกผู้ใช้ว่าส่วนนี้แสดงทั้งเดือน
-  // ("เดือนนี้" นับว่าเต็มเดือน เพราะยังไม่มีสลิปหลังวันนี้)
-  const commIsPartialMonth = !!range && period !== "month" && (
-    range.start.getDate() !== 1 ||
-    new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate() + 1).getDate() !== 1
-  );
   const periodLabel = range
     ? `${range.start.toLocaleDateString("th-TH", { day: "numeric", month: "short" })} – ${range.end.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}`
     : "";
@@ -353,9 +401,7 @@ export default function DashboardPage() {
 
       {/* Commission summary — current month */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">ค่าคอมมิชชัน · {commMonths.map((m) => new Date(`${m}-01`).toLocaleDateString("th-TH", { month: "short", year: "numeric" })).join(", ")}
-          {commIsPartialMonth && <span className="ml-2 normal-case font-normal text-amber-600">(คิดทั้งเดือน ไม่ใช่เฉพาะช่วงวันที่ที่เลือก)</span>}
-        </p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">ค่าคอมมิชชัน · {periodLabel}</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* ยอดขายจากสลิป */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
