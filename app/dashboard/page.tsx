@@ -28,8 +28,10 @@ interface User {
 interface UserSummary {
   userId: string;
   totalAmount: number;
+  slipAmount?: number;
   reachedThreshold: boolean;
   commission: number;
+  user?: { fullName: string };
 }
 interface CommissionData {
   month: string;
@@ -37,9 +39,19 @@ interface CommissionData {
   summary: UserSummary[];
 }
 
-function getCurrentMonth() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+function toMonthKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// เดือนทั้งหมดที่ช่วงวันที่ครอบคลุม (ค่าคอมคิดเป็นรายเดือน)
+function monthsInRange(start: Date, end: Date) {
+  const months: string[] = [];
+  const d = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (d <= end) {
+    months.push(toMonthKey(d));
+    d.setMonth(d.getMonth() + 1);
+  }
+  return months;
 }
 
 
@@ -90,12 +102,18 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const commMonths = useMemo(() => {
+    const r = getDateRange(period, customFrom, customTo);
+    return r ? monthsInRange(r.start, r.end) : [toMonthKey(new Date())];
+  }, [period, customFrom, customTo]);
+
   useEffect(() => {
-    api.getCommissionSummary(getCurrentMonth())
-      .then(setCommData)
+    setCommLoading(true);
+    Promise.all(commMonths.map((m) => api.getCommissionSummary(m) as Promise<CommissionData>))
+      .then((list) => setCommData({ ...list[0], month: commMonths.join(","), summary: list.flatMap((d) => d?.summary ?? []) }))
       .catch(console.error)
       .finally(() => setCommLoading(false));
-  }, []);
+  }, [commMonths.join(",")]);
 
   const provinces = useMemo(() => Array.from(new Set(visits.map((v) => v.province))).sort(), [visits]);
   const userNames = useMemo(() => Array.from(new Set(visits.map((v) => v.user?.fullName).filter(Boolean) as string[])).sort(), [visits]);
@@ -163,11 +181,13 @@ export default function DashboardPage() {
 
   const recentVisits = filteredVisits.slice(0, 5);
 
-  const commReached = commData?.summary.filter((r) => r.reachedThreshold) ?? [];
+  const commSummary = (commData?.summary ?? []).filter((r) => !userFilter || r.user?.fullName === userFilter);
+  const commReached = commSummary.filter((r) => r.reachedThreshold);
   const totalCommission = commReached.reduce((s, r) => s + r.commission, 0);
-  const reachedCount = commReached.length;
-  const pendingCount = (commData?.summary.length ?? 0) - reachedCount;
-  const totalSlipsAmount = commData?.summary.reduce((s, r) => s + r.totalAmount, 0) ?? 0;
+  const commUserCount = new Set(commSummary.map((r) => r.userId)).size;
+  const reachedCount = new Set(commReached.map((r) => r.userId)).size;
+  const pendingCount = commUserCount - reachedCount;
+  const totalSlipsAmount = commSummary.reduce((s, r) => s + (r.slipAmount ?? r.totalAmount), 0);
 
   const range = getDateRange(period, customFrom, customTo);
   const periodLabel = range
@@ -324,7 +344,7 @@ export default function DashboardPage() {
 
       {/* Commission summary — current month */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">ค่าคอมมิชชันเดือนนี้</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">ค่าคอมมิชชัน · {commMonths.map((m) => new Date(`${m}-01`).toLocaleDateString("th-TH", { month: "short", year: "numeric" })).join(", ")}</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* ยอดขายจากสลิป */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -387,7 +407,7 @@ export default function DashboardPage() {
                 <p className="text-3xl font-bold tabular-nums leading-none text-green-600">{reachedCount}</p>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-1.5">คน จาก {commData?.summary.length ?? 0} คน</p>
+            <p className="text-xs text-gray-400 mt-1.5">คน จาก {commUserCount} คน</p>
           </div>
 
           {/* ยังไม่ถึงเป้า */}
