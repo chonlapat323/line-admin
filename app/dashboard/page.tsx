@@ -108,12 +108,15 @@ export default function DashboardPage() {
   }, [period, customFrom, customTo]);
 
   useEffect(() => {
+    // กันผลลัพธ์เก่ามาทับ เมื่อเปลี่ยนช่วงวันที่เร็วๆ
+    let cancelled = false;
     setCommLoading(true);
     Promise.all(commMonths.map((m) => api.getCommissionSummary(m) as Promise<CommissionData>))
-      .then((list) => setCommData({ ...list[0], month: commMonths.join(","), summary: list.flatMap((d) => d?.summary ?? []) }))
+      .then((list) => { if (!cancelled) setCommData({ ...list[0], month: commMonths.join(","), summary: list.flatMap((d) => d?.summary ?? []) }); })
       .catch(console.error)
-      .finally(() => setCommLoading(false));
-  }, [commMonths.join(",")]);
+      .finally(() => { if (!cancelled) setCommLoading(false); });
+    return () => { cancelled = true; };
+  }, [commMonths]);
 
   const provinces = useMemo(() => Array.from(new Set(visits.map((v) => v.province))).sort(), [visits]);
   const userNames = useMemo(() => Array.from(new Set(visits.map((v) => v.user?.fullName).filter(Boolean) as string[])).sort(), [visits]);
