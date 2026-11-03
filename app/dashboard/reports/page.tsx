@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
 import { CUSTOMER_TYPE_LABEL } from "@/lib/labels";
 
@@ -173,6 +173,19 @@ export default function ReportsPage() {
     setMinAmt(null); setMaxAmt(null); setProvince(""); setResult("");
   }
   function selectUser(id: string) { setSelectedUserId(id); resetFilters(); }
+
+  // ปุ่มค้นหา: อ่านค่าจาก input โดยตรง — บน iPad/Safari บางครั้ง onChange ของ date/text ไม่ยิง ทำให้ไม่กรองอัตโนมัติ
+  const filterPanelRef = useRef<HTMLDivElement>(null);
+  function applyFilters() {
+    const el = filterPanelRef.current;
+    if (!el) return;
+    (document.activeElement as HTMLElement | null)?.blur();
+    const val = (name: string) => (el.querySelector(`[data-f="${name}"]`) as HTMLInputElement | HTMLSelectElement | null)?.value ?? "";
+    const num = (v: string) => (v ? parseFloat(v) : null);
+    setDateFrom(val("dateFrom")); setDateTo(val("dateTo")); setShopSearch(val("shop"));
+    if (tab === "visits") { setProvince(val("province")); setResult(val("result")); }
+    if (tab === "commissions") { setMinAmt(num(val("minAmt"))); setMaxAmt(num(val("maxAmt"))); }
+  }
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
 
@@ -580,22 +593,23 @@ export default function ReportsPage() {
 
       {/* Right: filters + summary */}
       <div className="w-56 flex-shrink-0 space-y-3 self-start sticky top-4 print:hidden">
-        <div className="bg-pink-50 rounded-2xl border border-pink-100 p-4 space-y-4">
+        <div ref={filterPanelRef} className="bg-pink-50 rounded-2xl border border-pink-100 p-4 space-y-4">
           <p className="font-semibold text-gray-700">ระบบค้นหา</p>
 
           {/* Date range */}
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1.5">ช่วงวันที่</label>
-            <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); if (dateTo && e.target.value > dateTo) setDateTo(""); }}
+            <input type="date" data-f="dateFrom" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); if (dateTo && e.target.value > dateTo) setDateTo(""); }}
               className="w-full text-sm border border-pink-200 rounded-lg px-2 py-1.5 mb-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400" />
-            <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)}
+            <input type="date" data-f="dateTo" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)}
               className="w-full text-sm border border-pink-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400" />
           </div>
 
           {/* Shop search */}
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1.5">ชื่อร้าน</label>
-            <input type="text" placeholder="ค้นหา..." value={shopSearch} onChange={(e) => setShopSearch(e.target.value)}
+            <input type="text" data-f="shop" placeholder="ค้นหา..." value={shopSearch} onChange={(e) => setShopSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }}
               className="w-full text-sm border border-pink-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400" />
           </div>
 
@@ -604,7 +618,7 @@ export default function ReportsPage() {
             <>
               <div>
                 <label className="text-xs font-semibold text-gray-500 block mb-1.5">จังหวัด</label>
-                <select value={province} onChange={(e) => setProvince(e.target.value)}
+                <select data-f="province" value={province} onChange={(e) => setProvince(e.target.value)}
                   className="w-full text-sm border border-pink-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400">
                   <option value="">ทุกจังหวัด</option>
                   {visitProvinces.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -612,7 +626,7 @@ export default function ReportsPage() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 block mb-1.5">ผลการออกทริป</label>
-                <select value={result} onChange={(e) => setResult(e.target.value)}
+                <select data-f="result" value={result} onChange={(e) => setResult(e.target.value)}
                   className="w-full text-sm border border-pink-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400">
                   <option value="">ทั้งหมด</option>
                   <option value="buy">ซื้อ</option>
@@ -628,16 +642,24 @@ export default function ReportsPage() {
             <div>
               <label className="text-xs font-semibold text-gray-500 block mb-1.5">ยอดเงิน (บาท)</label>
               <div className="flex gap-1 items-center">
-                <input type="number" placeholder="ต่ำสุด" value={minAmt ?? ""}
+                <input type="number" data-f="minAmt" placeholder="ต่ำสุด" value={minAmt ?? ""}
                   onChange={(e) => setMinAmt(e.target.value ? parseFloat(e.target.value) : null)}
                   className="w-1/2 text-sm border border-pink-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400" />
                 <span className="text-gray-400 text-xs">—</span>
-                <input type="number" placeholder="สูงสุด" value={maxAmt ?? ""}
+                <input type="number" data-f="maxAmt" placeholder="สูงสุด" value={maxAmt ?? ""}
                   onChange={(e) => setMaxAmt(e.target.value ? parseFloat(e.target.value) : null)}
                   className="w-1/2 text-sm border border-pink-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400" />
               </div>
             </div>
           )}
+
+          <button onClick={applyFilters}
+            className="w-full py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-1.5">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+            </svg>
+            ค้นหา
+          </button>
 
           {/* Summary */}
           <div className="pt-2 border-t border-pink-200 space-y-3">
