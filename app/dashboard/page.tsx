@@ -193,6 +193,12 @@ export default function DashboardPage() {
   const totalSlipsAmount = commSummary.reduce((s, r) => s + (r.slipAmount ?? r.totalAmount), 0);
 
   const range = getDateRange(period, customFrom, customTo);
+  // ค่าคอมคิดเป็นรายเดือน — ถ้าช่วงที่เลือกไม่เต็มเดือน ต้องบอกผู้ใช้ว่าส่วนนี้แสดงทั้งเดือน
+  // ("เดือนนี้" นับว่าเต็มเดือน เพราะยังไม่มีสลิปหลังวันนี้)
+  const commIsPartialMonth = !!range && period !== "month" && (
+    range.start.getDate() !== 1 ||
+    new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate() + 1).getDate() !== 1
+  );
   const periodLabel = range
     ? `${range.start.toLocaleDateString("th-TH", { day: "numeric", month: "short" })} – ${range.end.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}`
     : "";
@@ -248,9 +254,9 @@ export default function DashboardPage() {
       ),
     },
     {
-      label: "ยอดซื้อรวม",
+      label: "ยอดซื้อจากทริป",
       value: `฿${totalAmount.toLocaleString("th-TH")}`,
-      sub: `จาก ${buyCount} รายการที่ซื้อ`,
+      sub: `จาก ${buyCount} ทริปที่ซื้อ (ไม่ใช่ยอดสลิป)`,
       color: "text-green-700",
       iconBg: "bg-green-50",
       icon: (
@@ -347,7 +353,9 @@ export default function DashboardPage() {
 
       {/* Commission summary — current month */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">ค่าคอมมิชชัน · {commMonths.map((m) => new Date(`${m}-01`).toLocaleDateString("th-TH", { month: "short", year: "numeric" })).join(", ")}</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">ค่าคอมมิชชัน · {commMonths.map((m) => new Date(`${m}-01`).toLocaleDateString("th-TH", { month: "short", year: "numeric" })).join(", ")}
+          {commIsPartialMonth && <span className="ml-2 normal-case font-normal text-amber-600">(คิดทั้งเดือน ไม่ใช่เฉพาะช่วงวันที่ที่เลือก)</span>}
+        </p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* ยอดขายจากสลิป */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
