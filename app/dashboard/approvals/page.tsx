@@ -401,6 +401,7 @@ export default function ApprovalsPage() {
   // Slips tab
   const [slips, setSlips] = useState<SlipSubmission[]>([]);
   const [total, setTotal] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
 
@@ -449,7 +450,7 @@ export default function ApprovalsPage() {
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
     })
-      .then((res) => { setSlips(res?.data ?? []); setTotal(res?.total ?? 0); })
+      .then((res) => { setSlips(res?.data ?? []); setTotal(res?.total ?? 0); setTotalAmount(res?.totalAmount ?? 0); })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [search, dateFrom, dateTo, statusFilter]);
@@ -597,6 +598,14 @@ export default function ApprovalsPage() {
               ล้าง
             </button>
           )}
+          <div className="ml-auto flex items-baseline gap-2 px-4 py-1.5 rounded-xl bg-green-50">
+            <span className="text-xs font-medium text-green-700">
+              ยอดรวมสลิป{statusFilter ? "" : " (ไม่รวมที่ปฏิเสธ)"}
+            </span>
+            <span className="text-lg font-bold tabular-nums text-green-700">
+              {loading ? "…" : `฿${totalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            </span>
+          </div>
         </div>
       </div>
 
