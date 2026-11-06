@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import { PERIOD_OPTIONS, Period, filterByDateRange, formatThaiDate, getDateRange } from "@/lib/date-filter";
 import { TRIP_LABEL, RESULT_LABEL, MISSION_OPTIONS, CUSTOMER_TYPE_OPTIONS, CUSTOMER_TYPE_LABEL } from "@/lib/labels";
+import { CustomerTypePie, VisitResultPie } from "@/components/visit-pie-charts";
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface VisitRecord {
@@ -397,6 +398,12 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Pie charts — ตามตัวกรองด้านบน */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CustomerTypePie visits={filteredVisits} loading={loading} />
+        <VisitResultPie visits={filteredVisits} loading={loading} />
       </div>
 
       {/* Commission summary — current month */}
