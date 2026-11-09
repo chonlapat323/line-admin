@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import NameCombobox from "@/components/name-combobox";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 interface UserSummary {
@@ -1351,13 +1352,7 @@ export default function CommissionsPage() {
             </div>
             <div className="border-t border-gray-100" />
             <div className="flex gap-2 items-center">
-              <div className="relative flex-1 min-w-[200px] max-w-xs">
-                <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${search ? "text-green-200" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-                </svg>
-                <input type="text" placeholder="ค้นหาชื่อเซล..." value={search} onChange={(e) => setSearch(e.target.value)}
-                  className={`w-full pl-9 pr-4 py-1.5 text-sm rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-green-400 font-medium transition-colors ${search ? "bg-green-500 text-white placeholder:text-green-200" : "bg-gray-100 text-gray-600 placeholder:text-gray-400"}`} />
-              </div>
+              <NameCombobox value={search} onChange={setSearch} options={(data?.summary ?? []).map((r) => r.user.fullName)} />
               {search && <button onClick={() => setSearch("")} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 rounded-xl hover:bg-gray-100">ล้าง</button>}
             </div>
           </div>
