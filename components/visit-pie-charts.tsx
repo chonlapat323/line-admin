@@ -5,6 +5,42 @@ import { CUSTOMER_TYPE_LABEL, RESULT_LABEL } from "@/lib/labels";
 interface VisitLike {
   customerType: string;
   result?: string;
+  orderAmount?: number | null;
+  user?: { fullName: string };
+}
+
+const SALES_COLORS = ["#0b74e5", "#06b6d4", "#f97316", "#f59e0b", "#84cc16", "#a855f7", "#ec4899"];
+const MAX_SLICES = 6;
+
+// รวมค่าตามเซลล์ เรียงมาก→น้อย เกิน MAX_SLICES รวมเป็น "อื่นๆ"
+function bySalesPerson(visits: VisitLike[], valueOf: (v: VisitLike) => number) {
+  const map = new Map<string, number>();
+  for (const v of visits) {
+    const name = v.user?.fullName ?? "ไม่ระบุ";
+    map.set(name, (map.get(name) ?? 0) + valueOf(v));
+  }
+  const sorted = Array.from(map.entries()).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  const top = sorted.slice(0, MAX_SLICES);
+  const rest = sorted.slice(MAX_SLICES).reduce((s, [, n]) => s + n, 0);
+  if (rest > 0) top.push(["อื่นๆ", rest]);
+  return top.map(([label, value], i) => ({ key: label, label, value, color: label === "อื่นๆ" ? "#9ca3af" : SALES_COLORS[i % SALES_COLORS.length] }));
+}
+
+// สัดส่วนจำนวนการเยี่ยมของแต่ละเซลล์
+export function VisitsBySalesPie({ visits, loading }: { visits: VisitLike[]; loading?: boolean }) {
+  return <DonutChart title="จำนวนเยี่ยมตามเซลล์" loading={loading} data={bySalesPerson(visits, () => 1)} />;
+}
+
+// สัดส่วนยอดซื้อ (จากทริปที่ซื้อ) ของแต่ละเซลล์
+export function SalesAmountBySalesPie({ visits, loading }: { visits: VisitLike[]; loading?: boolean }) {
+  return (
+    <DonutChart
+      title="ยอดซื้อตามเซลล์"
+      loading={loading}
+      data={bySalesPerson(visits, (v) => (v.result === "buy" ? v.orderAmount ?? 0 : 0))}
+      formatValue={(n) => `฿${n.toLocaleString("th-TH")}`}
+    />
+  );
 }
 
 // สัดส่วนลูกค้าเก่า/ใหม่ ของทริปที่กรองแล้ว

@@ -9,7 +9,9 @@ export interface DonutSlice {
 }
 
 // กราฟโดนัทพร้อม legend — ใช้ร่วมกันระหว่างกราฟลูกค้าและกราฟการตอบรับ
-export default function DonutChart({ title, data, loading }: { title: string; data: DonutSlice[]; loading?: boolean }) {
+export default function DonutChart({ title, data, loading, formatValue = (v) => v.toLocaleString("th-TH") }: {
+  title: string; data: DonutSlice[]; loading?: boolean; formatValue?: (v: number) => string;
+}) {
   const total = data.reduce((s, d) => s + d.value, 0);
   const slices = data.filter((d) => d.value > 0);
   const pct = (v: number) => (total > 0 ? `${((v / total) * 100).toFixed(1)}%` : "0%");
@@ -53,7 +55,7 @@ export default function DonutChart({ title, data, loading }: { title: string; da
                 >
                   {slices.map((d) => <Cell key={d.key} fill={d.color} />)}
                 </Pie>
-                <Tooltip formatter={(v: any, name: any) => [`${Number(v).toLocaleString("th-TH")} (${pct(Number(v))})`, name]} />
+                <Tooltip formatter={(v: any, name: any) => [`${formatValue(Number(v))} (${pct(Number(v))})`, name]} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -62,7 +64,7 @@ export default function DonutChart({ title, data, loading }: { title: string; da
               <li key={d.key} className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: d.color }} />
                 <span>{d.label}</span>
-                <span className="text-gray-400 tabular-nums">{d.value.toLocaleString("th-TH")}</span>
+                <span className="text-gray-400 tabular-nums">{formatValue(d.value)}</span>
               </li>
             ))}
           </ul>

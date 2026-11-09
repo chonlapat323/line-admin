@@ -3,8 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import { PERIOD_OPTIONS, Period, filterByDateRange, formatThaiDate, getDateRange } from "@/lib/date-filter";
 import { TRIP_LABEL, RESULT_LABEL, MISSION_OPTIONS, CUSTOMER_TYPE_OPTIONS, CUSTOMER_TYPE_LABEL } from "@/lib/labels";
-import { CustomerTypePie, VisitResultPie } from "@/components/visit-pie-charts";
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { CustomerTypePie, VisitResultPie, VisitsBySalesPie, SalesAmountBySalesPie } from "@/components/visit-pie-charts";
 
 interface VisitRecord {
   id: string;
@@ -174,43 +173,6 @@ export default function DashboardPage() {
     .filter((v) => v.result === "buy" && v.orderAmount != null)
     .reduce((s, v) => s + (v.orderAmount ?? 0), 0);
 
-  const chartData = useMemo(() => {
-    if (period === "today") {
-      const hours = Array.from({ length: 17 }, (_, i) => ({ label: `${i + 6}:00`, visits: 0, amount: 0 }));
-      for (const v of filteredVisits) {
-        const idx = new Date(v.createdAt).getHours() - 6;
-        if (idx >= 0 && idx < 17) {
-          hours[idx].visits++;
-          if (v.result === "buy" && v.orderAmount) hours[idx].amount += v.orderAmount;
-        }
-      }
-      return hours;
-    }
-    const r = getDateRange(period, customFrom, customTo);
-    if (!r) return [];
-    const start = new Date(r.start); start.setHours(0, 0, 0, 0);
-    const end = new Date(r.end); end.setHours(23, 59, 59, 999);
-    const diffDays = Math.ceil((end.getTime() - start.getTime()) / 86400000);
-    const byWeek = diffDays > 31;
-    const buckets: { label: string; key: string; visits: number; amount: number }[] = [];
-    const d = new Date(start);
-    while (d <= end) {
-      buckets.push({ label: d.toLocaleDateString("th-TH", { day: "numeric", month: "short" }), key: d.toISOString().split("T")[0], visits: 0, amount: 0 });
-      d.setDate(d.getDate() + (byWeek ? 7 : 1));
-    }
-    for (const v of filteredVisits) {
-      const vKey = new Date(v.createdAt).toISOString().split("T")[0];
-      if (byWeek) {
-        for (let i = buckets.length - 1; i >= 0; i--) {
-          if (vKey >= buckets[i].key) { buckets[i].visits++; if (v.result === "buy" && v.orderAmount) buckets[i].amount += v.orderAmount; break; }
-        }
-      } else {
-        const b = buckets.find((b) => b.key === vKey);
-        if (b) { b.visits++; if (v.result === "buy" && v.orderAmount) b.amount += v.orderAmount; }
-      }
-    }
-    return buckets;
-  }, [filteredVisits, period, customFrom, customTo]);
 
   const recentVisits = filteredVisits.slice(0, 5);
 
@@ -511,37 +473,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Chart */}
-      {!loading && chartData.length > 1 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <p className="text-sm font-semibold text-gray-700 mb-4">
-            {period === "today" ? "ออกทริปรายชั่วโมง" : "แนวโน้มการออกทริป"}
-          </p>
-          <ResponsiveContainer width="100%" height={200}>
-            <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-              <YAxis yAxisId="left" tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} allowDecimals={false} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false}
-                tickFormatter={(v) => v >= 1000 ? `฿${(v / 1000).toFixed(0)}k` : `฿${v}`} />
-              <Tooltip
-                formatter={(value, name) =>
-                  name === "visits"
-                    ? [`${value} ครั้ง`, "ออกทริป"]
-                    : [`฿${Number(value).toLocaleString("th-TH")}`, "ยอดซื้อ"]
-                }
-                contentStyle={{ borderRadius: "12px", border: "1px solid #f3f4f6", fontSize: "12px" }}
-              />
-              <Bar yAxisId="left" dataKey="visits" fill="#86efac" radius={[3, 3, 0, 0]} maxBarSize={40} />
-              <Line yAxisId="right" type="monotone" dataKey="amount" stroke="#16a34a" strokeWidth={2} dot={false} />
-            </ComposedChart>
-          </ResponsiveContainer>
-          <div className="flex gap-4 mt-3 justify-end">
-            <span className="flex items-center gap-1.5 text-xs text-gray-400"><span className="w-3 h-3 rounded-sm bg-green-200 inline-block" />จำนวนเยี่ยม</span>
-            <span className="flex items-center gap-1.5 text-xs text-gray-400"><span className="w-4 h-0.5 bg-green-600 inline-block" />ยอดซื้อ</span>
-          </div>
-        </div>
-      )}
+      {/* สัดส่วนตามเซลล์ (แทนกราฟแนวโน้มรายวัน) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <VisitsBySalesPie visits={filteredVisits} loading={loading} />
+        <SalesAmountBySalesPie visits={filteredVisits} loading={loading} />
+      </div>
 
       {/* User summary */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
