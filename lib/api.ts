@@ -140,6 +140,9 @@ export const api = {
   toggleSlipProxy: (id: string, isProxy: boolean) =>
     request(`/slips/${id}/proxy`, { method: "PATCH", body: JSON.stringify({ isProxy }) }),
 
+  getSalesOverview: (from: string, to: string) =>
+    request(`/flowaccount/sales-overview?from=${from}&to=${to}`),
+
   getCommissionSummary: (month: string) =>
     request(`/visits/commission-summary?month=${month}`),
 

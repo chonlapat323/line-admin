@@ -3,7 +3,8 @@ import { useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import { PERIOD_OPTIONS, Period, filterByDateRange, formatThaiDate, getDateRange } from "@/lib/date-filter";
 import { TRIP_LABEL, RESULT_LABEL, MISSION_OPTIONS, CUSTOMER_TYPE_OPTIONS, CUSTOMER_TYPE_LABEL } from "@/lib/labels";
-import { CustomerTypePie, VisitResultPie, VisitsBySalesPie, SalesAmountBySalesPie } from "@/components/visit-pie-charts";
+import { CustomerTypePie, VisitResultPie, VisitsBySalesPie } from "@/components/visit-pie-charts";
+import SalesCollectionPie from "@/components/sales-collection-pie";
 
 interface VisitRecord {
   id: string;
@@ -122,6 +123,12 @@ export default function DashboardPage() {
     if (!r || period === "month") return null;
     const endsOnMonthEnd = new Date(r.end.getFullYear(), r.end.getMonth(), r.end.getDate() + 1).getDate() === 1;
     if (r.start.getDate() === 1 && endsOnMonthEnd) return null;
+    const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { from: ymd(r.start), to: ymd(r.end) };
+  }, [period, customFrom, customTo]);
+  // ช่วงวันที่สำหรับยอดซื้อ FlowAccount (YYYY-MM-DD ตามเวลาเครื่อง)
+  const salesRange = useMemo(() => {
+    const r = getDateRange(period, customFrom, customTo) ?? { start: new Date(new Date().getFullYear(), new Date().getMonth(), 1), end: new Date() };
     const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     return { from: ymd(r.start), to: ymd(r.end) };
   }, [period, customFrom, customTo]);
@@ -476,7 +483,7 @@ export default function DashboardPage() {
       {/* สัดส่วนตามเซลล์ (แทนกราฟแนวโน้มรายวัน) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <VisitsBySalesPie visits={filteredVisits} loading={loading} />
-        <SalesAmountBySalesPie visits={filteredVisits} loading={loading} />
+        <SalesCollectionPie from={salesRange.from} to={salesRange.to} />
       </div>
 
       {/* User summary */}
