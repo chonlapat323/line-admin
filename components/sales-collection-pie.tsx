@@ -69,18 +69,28 @@ export default function SalesCollectionPie({ from, to }: { from: string; to: str
   const pct = sales > 0 ? Math.round((collected / sales) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+    <div className="relative">
+    {/* โหลดใหม่ตอนเปลี่ยนช่วงวันที่: โชว์ข้อมูลเดิมจางๆ + ตัวหมุน */}
+    {loading && data && (
+      <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/60 backdrop-blur-[1px]">
+        <div className="flex items-center gap-2 text-sm text-gray-600 bg-white px-4 py-2 rounded-full shadow">
+          <span className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+          กำลังโหลดข้อมูลจาก FlowAccount...
+        </div>
+      </div>
+    )}
+    <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch transition-opacity ${loading && data ? "opacity-50" : ""}`}>
       <DonutChart
         title="ยอดซื้อ vs ยอดที่เซลล์เก็บ"
-        loading={loading}
+        loading={loading && !data}
         formatValue={baht}
         data={[
           { key: "collected", label: "เซลล์เก็บแล้ว (สลิป)", value: Math.min(collected, sales || collected), color: "#16a34a" },
           { key: "remaining", label: "ยังไม่ได้เก็บ", value: remaining, color: "#e5e7eb" },
         ]}
       />
-      {loading && <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse"><div className="h-full min-h-24 bg-gray-50 rounded-xl" /></div>}
-      {!loading && data && (
+      {loading && !data && <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse"><div className="h-full min-h-24 bg-gray-50 rounded-xl" /></div>}
+      {data && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm grid grid-cols-2 gap-x-4 gap-y-3 content-center">
           <div>
             <p className="text-xs text-gray-400">ยอดซื้อจากลูกค้า (FlowAccount)</p>
@@ -102,6 +112,7 @@ export default function SalesCollectionPie({ from, to }: { from: string; to: str
         </div>
       )}
       {showDocs && data && <DocsModal data={data} onClose={() => setShowDocs(false)} />}
+    </div>
     </div>
   );
 }
