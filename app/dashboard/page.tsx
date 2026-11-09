@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import { PERIOD_OPTIONS, Period, filterByDateRange, formatThaiDate, getDateRange } from "@/lib/date-filter";
 import { TRIP_LABEL, RESULT_LABEL, MISSION_OPTIONS, CUSTOMER_TYPE_OPTIONS, CUSTOMER_TYPE_LABEL } from "@/lib/labels";
-import { CustomerTypePie, VisitResultPie, VisitsBySalesPie } from "@/components/visit-pie-charts";
+import { CustomerTypePie, VisitResultPie } from "@/components/visit-pie-charts";
 import SalesCollectionPie from "@/components/sales-collection-pie";
 
 interface VisitRecord {
@@ -480,9 +480,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* สัดส่วนตามเซลล์ (แทนกราฟแนวโน้มรายวัน) */}
+      {/* ยอดซื้อ FlowAccount เทียบยอดที่เซลล์เก็บ */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <VisitsBySalesPie visits={filteredVisits} loading={loading} />
         <SalesCollectionPie from={salesRange.from} to={salesRange.to} />
       </div>
 
