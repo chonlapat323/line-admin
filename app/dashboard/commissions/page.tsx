@@ -200,15 +200,7 @@ function PayModal({ row, month, proxyCommission = 0, onClose, onDone }: {
         <div className="p-5 space-y-4">
           {/* Bank info */}
           <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">ธนาคาร</span>
-              <span className="font-semibold text-gray-800">{row.user.bankName || <span className="text-red-400">ยังไม่กรอก</span>}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">เลขบัญชี</span>
-              <span className="font-semibold text-gray-800 font-mono">{row.user.bankAccount || <span className="text-red-400">ยังไม่กรอก</span>}</span>
-            </div>
-            <div className="border-t border-gray-200 pt-1.5 mt-1.5 space-y-1">
+            <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">ค่าคอมปกติ</span>
                 <span className="font-semibold text-gray-700">฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
@@ -1077,14 +1069,12 @@ function OverdueTab({ rows, loading, onRefresh }: {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-white whitespace-nowrap">เดือน</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-white whitespace-nowrap">ค้างมา</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-white">เซล</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-white">ธนาคาร</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-white">ค่าคอม</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-white">การจ่าย</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, i) => {
-                const noBankInfo = !row.user.bankName || !row.user.bankAccount;
                 return (
                   <tr key={`${row.userId}-${row.month}`}
                     className="border-b border-gray-50 hover:bg-amber-50/30 transition-colors">
@@ -1105,16 +1095,6 @@ function OverdueTab({ rows, loading, onRefresh }: {
                       <p className="font-semibold text-gray-800">{row.user.fullName}</p>
                       <p className="text-xs text-gray-400">{row.user.email}</p>
                     </td>
-                    <td className="px-4 py-3">
-                      {!noBankInfo ? (
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">{row.user.bankName}</p>
-                          <p className="text-xs text-gray-500 font-mono">{row.user.bankAccount}</p>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-red-500 font-semibold">⚠ ยังไม่กรอก</span>
-                      )}
-                    </td>
                     <td className="px-4 py-3 text-right font-bold text-amber-700 tabular-nums">
                       ฿{row.commission.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                     </td>
@@ -1132,7 +1112,7 @@ function OverdueTab({ rows, loading, onRefresh }: {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-gray-200 bg-gray-50">
-                <td colSpan={5} className="px-4 py-3 text-xs font-semibold text-gray-500">
+                <td colSpan={4} className="px-4 py-3 text-xs font-semibold text-gray-500">
                   รวม {rows.length} รายการ
                 </td>
                 <td className="px-4 py-3 text-right font-bold text-amber-700 tabular-nums">
@@ -1247,7 +1227,6 @@ export default function CommissionsPage() {
   const totalProxyToPayAll = (data?.summary ?? []).filter(r => r.reachedThreshold).reduce((s, r) => s + (proxyMap[r.userId] ?? 0), 0);
   const grandTotalToPayAll = totalToPayAll + totalProxyToPayAll;
   const totalProxyPaidAll  = (data?.summary ?? []).filter(r => r.reachedThreshold && paidSet.has(r.userId)).reduce((s, r) => s + (proxyMap[r.userId] ?? 0), 0);
-  const missingBankCount = filtered.filter((r) => r.reachedThreshold && (!r.user.bankName || !r.user.bankAccount)).length;
 
   return (
     <div className="space-y-5">
@@ -1315,14 +1294,6 @@ export default function CommissionsPage() {
         </div>
       )}
 
-      {missingBankCount > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3 print:hidden">
-          <span className="text-xl">⚠️</span>
-          <p className="text-sm text-red-700 font-medium">
-            มีเซล <span className="font-bold">{missingBankCount} คน</span> ถึงเป้าแต่ยังไม่กรอกข้อมูลธนาคาร
-          </p>
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit print:hidden">
@@ -1399,7 +1370,6 @@ export default function CommissionsPage() {
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-8">#</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">เซล</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">ธนาคาร</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">ยอดสลิปสุทธิ</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-blue-500 whitespace-nowrap">+ช่วยยกมา</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-blue-500 whitespace-nowrap">+ช่วยเดือนนี้</th>
@@ -1412,17 +1382,16 @@ export default function CommissionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && <tr><td colSpan={12} className="text-center py-12 text-gray-400 text-sm">กำลังคำนวณ...</td></tr>}
+                  {loading && <tr><td colSpan={11} className="text-center py-12 text-gray-400 text-sm">กำลังคำนวณ...</td></tr>}
                   {!loading && filtered.length === 0 && (
                     <tr>
-                      <td colSpan={12} className="text-center py-16">
+                      <td colSpan={11} className="text-center py-16">
                         <p className="text-2xl mb-2">📊</p>
                         <p className="text-sm font-semibold text-gray-600">ไม่มีข้อมูล</p>
                       </td>
                     </tr>
                   )}
                   {!loading && filtered.map((row, i) => {
-                    const noBankInfo = row.reachedThreshold && (!row.user.bankName || !row.user.bankAccount);
                     const paid = paidSet.has(row.userId);
                     const paidRecord = payments.find((p) => p.userId === row.userId);
                     return (
@@ -1432,18 +1401,6 @@ export default function CommissionsPage() {
                         <td className="px-4 py-3">
                           <p className="font-semibold text-gray-800">{row.user.fullName}</p>
                           <p className="text-xs text-gray-400">{row.user.email}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          {row.user.bankName && row.user.bankAccount ? (
-                            <div>
-                              <p className="text-sm font-medium text-gray-700">{row.user.bankName}</p>
-                              <p className="text-xs text-gray-500 font-mono">{row.user.bankAccount}</p>
-                            </div>
-                          ) : (
-                            <span className={`text-xs ${noBankInfo ? "text-red-500 font-semibold" : "text-gray-300"}`}>
-                              {noBankInfo ? "⚠ ยังไม่กรอก" : "—"}
-                            </span>
-                          )}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">
                           <p className="font-medium text-gray-700">฿{row.slipAmount.toLocaleString("th-TH")}</p>
@@ -1536,7 +1493,7 @@ export default function CommissionsPage() {
                 {!loading && filtered.length > 0 && (
                   <tfoot>
                     <tr className="border-t-2 border-gray-200 bg-gray-50">
-                      <td colSpan={3} className="px-4 py-3 text-xs font-semibold text-gray-500">รวม {filtered.length} คน</td>
+                      <td colSpan={2} className="px-4 py-3 text-xs font-semibold text-gray-500">รวม {filtered.length} คน</td>
                       <td className="px-4 py-3 text-right font-semibold text-gray-700">฿{filtered.reduce((s, r) => s + r.slipAmount, 0).toLocaleString("th-TH")}</td>
                       <td className="px-4 py-3 text-right font-semibold text-blue-500">
                         {filtered.some((r) => r.adjustCarryover > 0) ? `+฿${filtered.reduce((s, r) => s + r.adjustCarryover, 0).toLocaleString("th-TH")}` : "—"}
