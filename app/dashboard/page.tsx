@@ -481,9 +481,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ยอดซื้อ FlowAccount เทียบยอดที่เซลล์เก็บ */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SalesCollectionPie from={salesRange.from} to={salesRange.to} />
-      </div>
+      <SalesCollectionPie from={salesRange.from} to={salesRange.to} />
 
       {/* User summary */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">

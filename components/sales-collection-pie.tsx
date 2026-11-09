@@ -69,7 +69,7 @@ export default function SalesCollectionPie({ from, to }: { from: string; to: str
   const pct = sales > 0 ? Math.round((collected / sales) * 100) : 0;
 
   return (
-    <div className="h-full flex flex-col gap-2">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
       <DonutChart
         title="ยอดซื้อ vs ยอดที่เซลล์เก็บ"
         loading={loading}
@@ -79,16 +79,17 @@ export default function SalesCollectionPie({ from, to }: { from: string; to: str
           { key: "remaining", label: "ยังไม่ได้เก็บ", value: remaining, color: "#e5e7eb" },
         ]}
       />
+      {loading && <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse"><div className="h-full min-h-24 bg-gray-50 rounded-xl" /></div>}
       {!loading && data && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-3 text-sm grid grid-cols-2 gap-2">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm grid grid-cols-2 gap-x-4 gap-y-3 content-center">
           <div>
             <p className="text-xs text-gray-400">ยอดซื้อจากลูกค้า (FlowAccount)</p>
-            <p className="font-bold text-gray-800 tabular-nums">{baht(sales)}</p>
+            <p className="text-2xl font-bold text-gray-800 tabular-nums mt-1">{baht(sales)}</p>
             <p className="text-xs text-gray-400">{data.invoiceCount + data.cashCount} เอกสาร</p>
           </div>
           <div>
             <p className="text-xs text-gray-400">เซลล์เก็บแล้ว {sales > 0 && `(${pct}%)`}</p>
-            <p className="font-bold text-green-700 tabular-nums">{baht(collected)}</p>
+            <p className="text-2xl font-bold text-green-700 tabular-nums mt-1">{baht(collected)}</p>
             <p className="text-xs text-gray-400">{data.slipCount} สลิป</p>
           </div>
           <button type="button" onClick={() => setShowDocs(true)}
